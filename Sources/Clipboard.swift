@@ -1,0 +1,688 @@
+import AppKit
+import Combine
+import CryptoKit
+import ApplicationServices
+
+public enum ClipboardContentKind: String, Codable, CaseIterable, Identifiable, Sendable {
+    case text
+    case richText
+    case image
+    case file
+    case other
+
+    public var id: String { rawValue }
+
+    public var title: String {
+        switch self {
+        case .text: "文本"
+        case .richText: "富文本"
+        case .image: "图片"
+        case .file: "文件"
+        case .other: "其他"
+        }
+    }
+}
+
+public struct ClipboardPayload: Codable, Equatable, Sendable {
+    public let type: String
+    public let data: Data
+
+    public init(type: String, data: Data) {
+        self.type = type
+        self.data = data
+    }
+}
+
+public struct ClipboardEntry: Codable, Identifiable, Equatable, Sendable {
+    public var id: UUID
+    public var contentHash: String
+    public var kind: ClipboardContentKind
+    public var createdAt: Date
+    public var lastUsedAt: Date
+    public var preview: String
+    /// Flattened format view retained for previews and type filters.
+    public var payloads: [ClipboardPayload]
+    /// Original NSPasteboardItem groups, with item order preserved.
+    public var pasteboardItems: [[ClipboardPayload]]
+    public var isFavorite: Bool
+    public var category: String?
+    public var tags: [String]
+
+    public var byteCount: Int { payloads.reduce(0) { $0 + $1.data.count } }
+
+    public init(id: UUID, contentHash: String, kind: ClipboardContentKind, createdAt: Date, lastUsedAt: Date, preview: String, payloads: [ClipboardPayload], pasteboardItems: [[ClipboardPayload]]? = nil, isFavorite: Bool, category: String?, tags: [String]) {
+        self.id = id
+        self.contentHash = contentHash
+        self.kind = kind
+        self.createdAt = createdAt
+        self.lastUsedAt = lastUsedAt
+        self.preview = preview
+        self.payloads = payloads
+        self.pasteboardItems = pasteboardItems ?? (payloads.isEmpty ? [] : [payloads])
+        self.isFavorite = isFavorite
+        self.category = category
+        self.tags = tags
+    }
+
+    public var plainText: String? {
+        let strings = pasteboardItems.compactMap(clipboardPlainText(in:))
+        return strings.isEmpty ? nil : strings.joined(separator: "\n")
+    }
+}
+
+public enum ClipboardRestoreResult: Equatable {
+    case copied
+    case pasteRequestSent
+    case copiedPermissionRequired
+    case copiedNoPreviousApplication
+}
+
+public enum ClipboardStoreError: LocalizedError {
+    case noRestorablePayload
+    case noPlainText
+    case mixedBatchNotSupported
+    case noImage
+    case invalidBackup
+    case pasteboardWriteFailed
+
+    public var errorDescription: String? {
+        switch self {
+        case .noRestorablePayload: "剪贴内容没有可恢复的数据。"
+        case .noPlainText: "这条剪贴记录不包含纯文本。"
+        case .mixedBatchNotSupported: "批量复制仅支持文本记录，不能混合图片或文件。"
+        case .noImage: "这条剪贴记录不包含图片。"
+        case .invalidBackup: "剪贴板备份文件无效。"
+        case .pasteboardWriteFailed: "写入系统剪贴板失败。"
+        }
+    }
+}
+
+public enum ClipboardSelectionBehavior: String, Codable, CaseIterable, Identifiable {
+    case clickCopiesDoubleClickPastes
+    case clickPastes
+    case doubleClickPastes
+
+    public var id: String { rawValue }
+}
+
+public enum ClipboardNumericKeyBehavior: String, Codable, CaseIterable, Identifiable {
+    case disabled
+    case copy
+    case paste
+
+    public var id: String { rawValue }
+}
+
+@MainActor
+public final class ClipboardStore: ObservableObject {
+    @Published public private(set) var items: [ClipboardEntry] = []
+    @Published public private(set) var isMonitoring = false
+    @Published public private(set) var errorMessage: String?
+    @Published public private(set) var statusMessage: String?
+    @Published public var selectionBehavior: ClipboardSelectionBehavior = .clickCopiesDoubleClickPastes { didSet { persistPreferences() } }
+    @Published public var numericKeyBehavior: ClipboardNumericKeyBehavior = .copy { didSet { persistPreferences() } }
+    @Published public var moveToFrontAfterCopy = true { didSet { persistPreferences() } }
+    @Published public var retentionDays: Int = 30 { didSet { persistPreferences() } }
+    @Published public var itemCountLimit: Int = 500 { didSet { persistPreferences() } }
+
+    public let directory: URL
+
+    private let pasteboard: NSPasteboard
+    private var timer: Timer?
+    private var lastChangeCount: Int
+    private var activationObserver: NSObjectProtocol?
+    @Published private var previousApplication: NSRunningApplication?
+    private let recordsURL: URL
+    private let preferencesURL: URL
+    public static let maximumBytesPerPasteboardItem = 8 * 1024 * 1024
+    public static let maximumBytesPerCapture = 32 * 1024 * 1024
+
+    private static let excludedMarkers: Set<String> = [
+        "org.nspasteboard.transienttype",
+        "org.nspasteboard.concealedtype",
+        "org.nspasteboard.autogeneratedtype"
+    ]
+
+    public init(
+        directory: URL? = nil,
+        pasteboard: NSPasteboard = .general,
+        startMonitoring: Bool = false
+    ) {
+        let baseDirectory = directory ?? FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent(Bundle.main.bundleIdentifier ?? "ScreenshotKing", isDirectory: true)
+            .appendingPathComponent("Clipboard", isDirectory: true)
+        self.directory = baseDirectory
+        self.recordsURL = baseDirectory.appendingPathComponent("clipboard-history.json")
+        self.preferencesURL = baseDirectory.appendingPathComponent("clipboard-preferences.json")
+        self.pasteboard = pasteboard
+        self.lastChangeCount = pasteboard.changeCount
+        loadPreferences()
+        load()
+        rememberFrontmostApplication()
+        activationObserver = NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.didActivateApplicationNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] notification in
+            guard let app = notification.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication else { return }
+            Task { @MainActor [weak self] in
+                guard let self, app.activationPolicy == .regular, app.processIdentifier != ProcessInfo.processInfo.processIdentifier else { return }
+                self.previousApplication = app
+            }
+        }
+        if startMonitoring { self.startMonitoring() }
+    }
+
+    deinit {
+        timer?.invalidate()
+        if let activationObserver {
+            NSWorkspace.shared.notificationCenter.removeObserver(activationObserver)
+        }
+    }
+
+    public func startMonitoring() {
+        guard !isMonitoring else { return }
+        isMonitoring = true
+        lastChangeCount = pasteboard.changeCount
+        let timer = Timer(timeInterval: 0.45, target: self, selector: #selector(pollPasteboard), userInfo: nil, repeats: true)
+        RunLoop.main.add(timer, forMode: .common)
+        self.timer = timer
+    }
+
+    public func stopMonitoring() {
+        timer?.invalidate()
+        timer = nil
+        isMonitoring = false
+    }
+
+    /// A deterministic polling entry point used by tests and hosts that own a scheduler.
+    public func checkPasteboardNow() {
+        guard isMonitoring else { return }
+        pollPasteboard()
+    }
+
+    public func rememberFrontmostApplication() {
+        guard let app = NSWorkspace.shared.frontmostApplication, app.activationPolicy == .regular,
+              app.processIdentifier != ProcessInfo.processInfo.processIdentifier else { return }
+        previousApplication = app
+    }
+
+    @objc private func pollPasteboard() {
+        guard isMonitoring, pasteboard.changeCount != lastChangeCount else { return }
+        lastChangeCount = pasteboard.changeCount
+        guard let entry = makeEntry(from: pasteboard) else { return }
+        guard !items.contains(where: { $0.contentHash == entry.contentHash }) else { return }
+        items.insert(entry, at: 0)
+        statusMessage = nil
+        enforceRetentionAndLimit(now: Date())
+        persist()
+    }
+
+    public func filteredItems(search: String = "", kind: ClipboardContentKind? = nil, favoritesOnly: Bool = false, category: String? = nil, tag: String? = nil) -> [ClipboardEntry] {
+        let needle = search.trimmingCharacters(in: .whitespacesAndNewlines).localizedLowercase
+        return items.filter { item in
+            (needle.isEmpty || item.preview.localizedLowercase.contains(needle) || item.tags.contains(where: { $0.localizedLowercase.contains(needle) })) &&
+            (kind == nil || item.kind == kind) &&
+            (!favoritesOnly || item.isFavorite) &&
+            (category == nil || item.category == category) &&
+            (tag.map(item.tags.contains) ?? true)
+        }
+    }
+
+    public var categories: [String] { Array(Set(items.compactMap(\.category))).sorted() }
+    public var tags: [String] { Array(Set(items.flatMap(\.tags))).sorted() }
+
+    public func toggleFavorite(id: UUID) {
+        guard let index = items.firstIndex(where: { $0.id == id }) else { return }
+        items[index].isFavorite.toggle()
+        persist()
+    }
+
+    public func setFavorite(_ favorite: Bool, id: UUID) {
+        guard let index = items.firstIndex(where: { $0.id == id }) else { return }
+        items[index].isFavorite = favorite
+        persist()
+    }
+
+    public func setCategory(_ category: String?, id: UUID) {
+        guard let index = items.firstIndex(where: { $0.id == id }) else { return }
+        let normalized = category?.trimmingCharacters(in: .whitespacesAndNewlines)
+        items[index].category = normalized?.isEmpty == true ? nil : normalized
+        persist()
+    }
+
+    public func createCategory(_ name: String) -> String? {
+        let value = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        return value.isEmpty ? nil : value
+    }
+
+    public func deleteCategory(_ name: String) {
+        for index in items.indices where items[index].category == name { items[index].category = nil }
+        persist()
+    }
+
+    public func addTag(_ tag: String, to id: UUID) {
+        guard let index = items.firstIndex(where: { $0.id == id }) else { return }
+        let value = tag.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !value.isEmpty, !items[index].tags.contains(value) else { return }
+        items[index].tags.append(value)
+        persist()
+    }
+
+    public func removeTag(_ tag: String, from id: UUID) {
+        guard let index = items.firstIndex(where: { $0.id == id }) else { return }
+        items[index].tags.removeAll { $0 == tag }
+        persist()
+    }
+
+    public func deleteTag(_ tag: String) {
+        for index in items.indices { items[index].tags.removeAll { $0 == tag } }
+        persist()
+    }
+
+    @discardableResult
+    public func restore(item: ClipboardEntry, plainText: Bool = false) throws -> ClipboardRestoreResult {
+        let replacementItems: [NSPasteboardWriting]
+        if plainText {
+            guard let text = item.plainText else { throw ClipboardStoreError.noPlainText }
+            let boardItem = NSPasteboardItem()
+            boardItem.setString(text, forType: .string)
+            replacementItems = [boardItem]
+        } else {
+            guard !item.pasteboardItems.isEmpty, item.pasteboardItems.allSatisfy({ !$0.isEmpty }) else {
+                throw ClipboardStoreError.noRestorablePayload
+            }
+            replacementItems = item.pasteboardItems.map { group in
+                let boardItem = NSPasteboardItem()
+                for payload in group { boardItem.setData(payload.data, forType: NSPasteboard.PasteboardType(payload.type)) }
+                return boardItem
+            }
+        }
+        pasteboard.clearContents()
+        guard pasteboard.writeObjects(replacementItems) else { throw ClipboardStoreError.pasteboardWriteFailed }
+        markUsed(item.id)
+        statusMessage = "已复制到系统剪贴板。"
+        return .copied
+    }
+
+    @discardableResult
+    public func paste(item: ClipboardEntry, plainText: Bool = false) throws -> ClipboardRestoreResult {
+        _ = try restore(item: item, plainText: plainText)
+        return requestPasteIntoPreviousApplication()
+    }
+
+    public var previousApplicationBundleIdentifier:String? { previousApplication?.bundleIdentifier }
+    public var previousApplicationName:String? { previousApplication?.localizedName ?? previousApplication?.bundleIdentifier }
+
+    @discardableResult public func requestPasteIntoPreviousApplication() -> ClipboardRestoreResult {
+        guard AXIsProcessTrusted() else {
+            statusMessage = "已复制到剪贴板。开启辅助功能权限后才能向上一个应用发送粘贴请求。"
+            return .copiedPermissionRequired
+        }
+        guard let app = previousApplication, app.processIdentifier != ProcessInfo.processInfo.processIdentifier,
+              !app.isTerminated,
+              NSWorkspace.shared.runningApplications.contains(where: { $0.processIdentifier == app.processIdentifier && !$0.isTerminated }) else {
+            previousApplication = nil
+            statusMessage = "已复制到剪贴板。没有可用的上一个应用，未发送粘贴请求。"
+            return .copiedNoPreviousApplication
+        }
+        app.activate(options: [.activateAllWindows])
+        let down = CGEvent(keyboardEventSource: nil, virtualKey: 9, keyDown: true)
+        down?.flags = .maskCommand
+        let up = CGEvent(keyboardEventSource: nil, virtualKey: 9, keyDown: false)
+        up?.flags = .maskCommand
+        guard let down, let up else {
+            statusMessage = "已复制到剪贴板，但无法构造粘贴按键事件。"
+            return .copied
+        }
+        down.postToPid(app.processIdentifier)
+        up.postToPid(app.processIdentifier)
+        statusMessage = "已向上一个应用发送粘贴请求，目标是否接收尚未确认。"
+        return .pasteRequestSent
+    }
+
+    /// Batch paste is deliberately text-only and joins entries in their supplied order with newlines.
+    @discardableResult
+    public func pasteBatch(_ entries: [ClipboardEntry]) throws -> ClipboardRestoreResult {
+        guard !entries.isEmpty else { throw ClipboardStoreError.noPlainText }
+        guard entries.allSatisfy({ $0.kind == .text || $0.kind == .richText }),
+              entries.allSatisfy({ $0.plainText != nil }) else { throw ClipboardStoreError.mixedBatchNotSupported }
+        let boardItem = NSPasteboardItem()
+        boardItem.setString(entries.compactMap(\.plainText).joined(separator: "\n"), forType: .string)
+        pasteboard.clearContents()
+        guard pasteboard.writeObjects([boardItem]) else { throw ClipboardStoreError.pasteboardWriteFailed }
+        for entry in entries { markUsed(entry.id) }
+        statusMessage = "已复制 \(entries.count) 条文本到剪贴板，内容以换行符分隔。"
+        return .copied
+    }
+
+    /// Maps 1–9 to the corresponding visible row; hosts can wire this to their chosen key event layer.
+    @discardableResult
+    public func performNumericShortcut(_ number: Int, among visibleItems: [ClipboardEntry]) throws -> ClipboardRestoreResult? {
+        guard numericKeyBehavior != .disabled, (1...9).contains(number), visibleItems.indices.contains(number - 1) else { return nil }
+        let item = visibleItems[number - 1]
+        switch numericKeyBehavior {
+        case .disabled: return nil
+        case .copy: return try restore(item: item)
+        case .paste: return try paste(item: item)
+        }
+    }
+
+    public func saveImage(item: ClipboardEntry, to url: URL) throws {
+        guard let source = imageData(for: item), let image = NSImage(data: source),
+              let bitmap = NSBitmapImageRep(data: image.tiffRepresentation ?? source) else { throw ClipboardStoreError.noImage }
+        let representation: NSBitmapImageRep.FileType
+        switch url.pathExtension.lowercased() {
+        case "jpg", "jpeg": representation = .jpeg
+        case "tif", "tiff": representation = .tiff
+        default: representation = .png
+        }
+        let data = bitmap.representation(using: representation, properties: [:]) ?? source
+        try data.write(to: url, options: .atomic)
+    }
+
+    public func image(for item: ClipboardEntry) -> NSImage? {
+        imageData(for: item).flatMap(NSImage.init(data:))
+    }
+
+    public func exportBackup(to url: URL) throws {
+        let data = try JSONEncoder.clipboard.encode(ClipboardBackup(version: 1, exportedAt: Date(), items: items))
+        try writePrivateFile(data, to: url)
+    }
+
+    public func importBackup(from url: URL, confirmation: Bool) throws {
+        guard confirmation else { return }
+        let data = try Data(contentsOf: url)
+        guard let backup = try? JSONDecoder.clipboard.decode(ClipboardBackup.self, from: data), backup.version == 1 else {
+            throw ClipboardStoreError.invalidBackup
+        }
+        for entry in backup.items where !items.contains(where: { $0.contentHash == entry.contentHash }) {
+            items.append(entry)
+        }
+        items.sort { $0.createdAt > $1.createdAt }
+        enforceRetentionAndLimit(now: Date())
+        persist()
+    }
+
+    public func cleanup(olderThan days: Int? = nil, keepLimit: Int? = nil, confirmation: Bool) {
+        guard confirmation else { return }
+        let cutoff = Calendar.current.date(byAdding: .day, value: -(days ?? retentionDays), to: Date()) ?? .distantPast
+        items.removeAll { !$0.isFavorite && $0.lastUsedAt < cutoff }
+        let limit = max(0, keepLimit ?? itemCountLimit)
+        if items.count > limit {
+            let removable = items.indices.filter { !items[$0].isFavorite }.sorted { items[$0].lastUsedAt < items[$1].lastUsedAt }
+            for index in removable.prefix(items.count - limit).sorted(by: >) { items.remove(at: index) }
+        }
+        persist()
+    }
+
+    public func clearAll(includeFavorites: Bool = false, confirmation: Bool) {
+        guard confirmation else { return }
+        if includeFavorites { items.removeAll() } else { items.removeAll { !$0.isFavorite } }
+        persist()
+    }
+
+    public func clearMatching(kinds: Set<ClipboardContentKind>? = nil, favorite: Bool? = nil, confirmation: Bool) {
+        guard confirmation else { return }
+        items.removeAll { item in
+            (kinds.map { $0.contains(item.kind) } ?? true) &&
+            (favorite.map { item.isFavorite == $0 } ?? true)
+        }
+        persist()
+    }
+
+    public func remove(id: UUID, confirmation: Bool) {
+        guard confirmation else { return }
+        items.removeAll { $0.id == id }
+        persist()
+    }
+
+    private func markUsed(_ id: UUID) {
+        guard let index = items.firstIndex(where: { $0.id == id }) else { return }
+        items[index].lastUsedAt = Date()
+        if moveToFrontAfterCopy {
+            let entry = items.remove(at: index)
+            items.insert(entry, at: 0)
+        }
+        persist()
+    }
+
+    private func makeEntry(from pasteboard: NSPasteboard) -> ClipboardEntry? {
+        guard let boardItems = pasteboard.pasteboardItems, !boardItems.isEmpty else { return nil }
+        let allTypes = boardItems.flatMap(\.types).map(\.rawValue)
+        let loweredTypes = Set(allTypes.map { $0.lowercased() })
+        guard loweredTypes.isDisjoint(with: Self.excludedMarkers),
+              !loweredTypes.contains(where: Self.isSensitiveType) else { return nil }
+
+        var payloadGroups: [[ClipboardPayload]] = []
+        var totalBytes = 0
+        for boardItem in boardItems {
+            var group: [ClipboardPayload] = []
+            var groupBytes = 0
+            for type in boardItem.types {
+                let raw = type.rawValue
+                guard !Self.isSensitiveType(raw) else { return nil }
+                let payload: ClipboardPayload?
+                if let data = boardItem.data(forType: type) {
+                    payload = ClipboardPayload(type: raw, data: data)
+                } else if let string = boardItem.string(forType: type) {
+                    payload = ClipboardPayload(type: raw, data: Data(string.utf8))
+                } else {
+                    payload = nil
+                }
+                if let payload {
+                    groupBytes += payload.data.count
+                    if groupBytes > Self.maximumBytesPerPasteboardItem {
+                        statusMessage = "剪贴内容中的单项超过 8 MB 上限，未保存。"
+                        return nil
+                    }
+                    group.append(payload)
+                }
+            }
+            guard !group.isEmpty else { continue }
+            totalBytes += groupBytes
+            if totalBytes > Self.maximumBytesPerCapture {
+                statusMessage = "本次剪贴内容超过 32 MB 总上限，未保存。"
+                return nil
+            }
+            payloadGroups.append(group)
+        }
+        guard !payloadGroups.isEmpty else { return nil }
+        let payloads = payloadGroups.flatMap { $0 }
+        let types = Set(payloads.map { $0.type.lowercased() })
+        let kind: ClipboardContentKind
+        if types.contains(where: { $0.contains("image") || $0 == "public.png" || $0 == "public.jpeg" || $0 == "public.tiff" }) {
+            kind = .image
+        } else if types.contains(NSPasteboard.PasteboardType.fileURL.rawValue.lowercased()) || types.contains("public.file-url") {
+            kind = .file
+        } else if types.contains(NSPasteboard.PasteboardType.rtf.rawValue.lowercased()) || types.contains("public.html") || types.contains("public.rtf") {
+            kind = .richText
+        } else if types.contains(NSPasteboard.PasteboardType.string.rawValue.lowercased()) || types.contains("public.utf8-plain-text") || types.contains("public.text") {
+            kind = .text
+        } else {
+            kind = .other
+        }
+        let text = payloadGroups.compactMap(Self.plainText(in:)).joined(separator: "\n")
+        let fileNames = boardItems.compactMap { $0.string(forType: .fileURL) }.compactMap(URL.init(string:)).map(\.lastPathComponent)
+        let preview: String
+        if !text.isEmpty { preview = String(text.prefix(500)) }
+        else if kind == .file, !fileNames.isEmpty { preview = fileNames.joined(separator: ", ") }
+        else if kind == .image { preview = boardItems.count > 1 ? "\(boardItems.count) 张图片" : "图片" }
+        else { preview = Array(Set(payloads.map(\.type))).sorted().joined(separator: ", ") }
+        let hash = Self.hash(payloadGroups)
+        return ClipboardEntry(id: UUID(), contentHash: hash, kind: kind, createdAt: Date(), lastUsedAt: Date(), preview: preview, payloads: payloads, pasteboardItems: payloadGroups, isFavorite: false, category: nil, tags: [])
+    }
+
+    private static func plainText(in group: [ClipboardPayload]) -> String? {
+        clipboardPlainText(in: group)
+    }
+
+    private static func isSensitiveType(_ rawType: String) -> Bool {
+        let value = rawType.lowercased()
+        return value.contains("password") || value.contains("concealed") || value.contains("transient") || value.contains("sensitive")
+    }
+
+    private static func hash(_ groups: [[ClipboardPayload]]) -> String {
+        var data = Data()
+        for group in groups {
+            appendLength(UInt64(group.count), to: &data)
+            for payload in group.sorted(by: { $0.type < $1.type }) {
+                let typeData = Data(payload.type.utf8)
+                appendLength(UInt64(typeData.count), to: &data)
+                data.append(typeData)
+                appendLength(UInt64(payload.data.count), to: &data)
+                data.append(payload.data)
+            }
+        }
+        return SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
+    }
+
+    private static func appendLength(_ count: UInt64, to data: inout Data) {
+        var bigEndian = count.bigEndian
+        withUnsafeBytes(of: &bigEndian) { data.append(contentsOf: $0) }
+    }
+
+    private func imageData(for entry: ClipboardEntry) -> Data? {
+        entry.payloads.first(where: { $0.type.lowercased().contains("image") || ["public.png", "public.jpeg", "public.tiff"].contains($0.type.lowercased()) })?.data
+    }
+
+    private func enforceRetentionAndLimit(now: Date) {
+        let cutoff = Calendar.current.date(byAdding: .day, value: -max(0, retentionDays), to: now) ?? .distantPast
+        items.removeAll { !$0.isFavorite && $0.lastUsedAt < cutoff }
+        let limit = max(0, itemCountLimit)
+        if items.count > limit {
+            let removable = items.indices.filter { !items[$0].isFavorite }.sorted { items[$0].lastUsedAt < items[$1].lastUsedAt }
+            for index in removable.prefix(items.count - limit).sorted(by: >) { items.remove(at: index) }
+        }
+    }
+
+    private func load() {
+        do {
+            guard FileManager.default.fileExists(atPath: recordsURL.path) else { return }
+            try secureExistingStorageFile(recordsURL)
+            let data = try Data(contentsOf: recordsURL)
+            items = try JSONDecoder.clipboard.decode([ClipboardEntry].self, from: data)
+            enforceRetentionAndLimit(now: Date())
+        } catch {
+            errorMessage = "读取剪贴板历史失败：\(error.localizedDescription)"
+        }
+    }
+
+    private func loadPreferences() {
+        do {
+            guard FileManager.default.fileExists(atPath: preferencesURL.path) else { return }
+            try secureExistingStorageFile(preferencesURL)
+            let data = try Data(contentsOf: preferencesURL)
+            let preferences = try JSONDecoder.clipboard.decode(ClipboardPreferences.self, from: data)
+            selectionBehavior = preferences.selectionBehavior
+            numericKeyBehavior = preferences.numericKeyBehavior
+            moveToFrontAfterCopy = preferences.moveToFrontAfterCopy
+            retentionDays = max(0, preferences.retentionDays)
+            itemCountLimit = max(0, preferences.itemCountLimit)
+        } catch {
+            errorMessage = "读取剪贴板设置失败：\(error.localizedDescription)"
+        }
+    }
+
+    private func persistPreferences() {
+        do {
+            try preparePrivateDirectory()
+            let preferences = ClipboardPreferences(selectionBehavior: selectionBehavior, numericKeyBehavior: numericKeyBehavior, moveToFrontAfterCopy: moveToFrontAfterCopy, retentionDays: retentionDays, itemCountLimit: itemCountLimit)
+            let data = try JSONEncoder.clipboard.encode(preferences)
+            try writePrivateFile(data, to: preferencesURL)
+        } catch {
+            errorMessage = "保存剪贴板设置失败：\(error.localizedDescription)"
+        }
+    }
+
+    private func persist() {
+        do {
+            try preparePrivateDirectory()
+            let data = try JSONEncoder.clipboard.encode(items)
+            try writePrivateFile(data, to: recordsURL)
+            errorMessage = nil
+        } catch {
+            errorMessage = "保存剪贴板历史失败：\(error.localizedDescription)"
+        }
+    }
+
+    private func preparePrivateDirectory() throws {
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
+        try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: directory.path)
+    }
+
+    private func writePrivateFile(_ data: Data, to url: URL) throws {
+        try data.write(to: url, options: .atomic)
+        try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: url.path)
+    }
+
+    private func secureExistingStorageFile(_ url: URL) throws {
+        try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: directory.path)
+        try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: url.path)
+    }
+}
+
+private func clipboardPlainText(in group: [ClipboardPayload]) -> String? {
+    if let payload = group.first(where: { $0.type == NSPasteboard.PasteboardType.string.rawValue }) {
+        return String(data: payload.data, encoding: .utf8)
+    }
+    for payload in group {
+        let type = payload.type.lowercased()
+        if type == "public.utf8-plain-text" || type == "public.text" {
+            return String(data: payload.data, encoding: .utf8)
+        }
+        let documentType: NSAttributedString.DocumentType
+        if type == NSPasteboard.PasteboardType.rtf.rawValue.lowercased() || type == "public.rtf" {
+            documentType = .rtf
+        } else if type == "public.html" || type == "text/html" {
+            let source = String(data: payload.data, encoding: .utf8)
+            let html: Data
+            if let source, source.range(of: "charset\\s*=", options: [.regularExpression, .caseInsensitive]) == nil {
+                html = Data(("<meta charset=\"utf-8\">" + source).utf8)
+            } else {
+                html = payload.data
+            }
+            if let value = try? NSAttributedString(data: html, options: [.documentType: NSAttributedString.DocumentType.html], documentAttributes: nil) {
+                return value.string
+            }
+            continue
+        } else {
+            continue
+        }
+        if let value = try? NSAttributedString(data: payload.data, options: [.documentType: documentType], documentAttributes: nil) {
+            return value.string
+        }
+    }
+    return nil
+}
+
+private struct ClipboardBackup: Codable {
+    let version: Int
+    let exportedAt: Date
+    let items: [ClipboardEntry]
+}
+
+private struct ClipboardPreferences: Codable {
+    let selectionBehavior: ClipboardSelectionBehavior
+    let numericKeyBehavior: ClipboardNumericKeyBehavior
+    let moveToFrontAfterCopy: Bool
+    let retentionDays: Int
+    let itemCountLimit: Int
+}
+
+private extension JSONEncoder {
+    static var clipboard: JSONEncoder {
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        encoder.outputFormatting = [.sortedKeys]
+        return encoder
+    }
+}
+
+private extension JSONDecoder {
+    static var clipboard: JSONDecoder {
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        return decoder
+    }
+}

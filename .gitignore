@@ -1,0 +1,11 @@
+build/
+.DS_Store
+evidence/ghidra-install.log
+evidence/*snapshot*
+evidence/*-arm64
+evidence/qa-real-*
+evidence/qa-screen*.mp4
+
+# Local reverse-engineering artifacts, recordings and verification logs
+/evidence/
+/Tests/*.log
