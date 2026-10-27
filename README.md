@@ -1,61 +1,129 @@
 # ScreenshotKing
 
-<img src="resources/branding/screenshotking-logo-v1.png" width="128" alt="ScreenshotKing logo">
+<p align="center">
+  <img src="resources/branding/screenshotking-logo-v1.png" width="104" alt="ScreenshotKing crown and screenshot frame logo">
+</p>
 
-[下载最新版](https://github.com/StarrHuang/screenshotking/releases/latest) · [build12 发布说明](docs/releases/0.3.0-build12.md)
+<p align="center">
+  <strong>Native macOS screenshots, rich annotations, and local clipboard history.</strong><br>
+  Capture quietly. Save and copy right away. Annotate when you need to.
+</p>
 
-以轻量、截图后静默保存并自动复制为默认交互，独立实现浮引的截图与本地剪贴板能力。原生 AppKit / SwiftUI，无 Electron、网络服务、账号或第三方运行时依赖。支持 Apple Silicon、macOS 15+。
+<p align="center">
+  <a href="README.md">English</a> · <a href="README.zh-CN.md">简体中文</a> · <a href="https://github.com/StarrHuang/screenshotking/releases/latest">Latest release</a> · <a href="docs/releases/0.3.0-build12.md">Build 12 notes</a>
+</p>
 
-## 启动
+**macOS 15+ · Apple Silicon · 2.3 MiB download**
 
-运行 `scripts/build.sh`，然后打开 `build/ScreenshotKing.app`。常驻菜单栏，主窗口可以关闭。菜单栏插件和文件菜单包含截图、长截图、录屏、编辑最近截图和打开图片。
+ScreenshotKing is a native, menu bar screenshot and clipboard utility built with AppKit, SwiftUI, ScreenCaptureKit, and Vision. It has no Electron shell, account, or bundled third-party runtime. Its interface is currently primarily in Simplified Chinese.
 
-默认快捷键：
+| Need | What ScreenshotKing does | Default |
+|---|---|---|
+| Capture without breaking focus | Saves a capture and copies it to the clipboard | Silent save and copy |
+| Add context to a screenshot | Reopen a capture for notes, steps, and visual markup | Editor opens on request |
+| Reuse copied material | Search and organize local text, rich text, images, and files | Clipboard monitoring off |
 
-| 动作 | 快捷键 |
+> **Download:** [ScreenshotKing 0.3.0 build12 for Apple Silicon](https://github.com/StarrHuang/screenshotking/releases/download/v0.3.0-build12/ScreenshotKing-0.3.0-build12-macOS-arm64.zip) · [SHA-256 checksums](https://github.com/StarrHuang/screenshotking/releases/download/v0.3.0-build12/SHA256SUMS.txt)
+>
+> This is an ad hoc signed development build and is not notarized by Apple. macOS may ask you to approve permissions again after a rebuild or signature change.
+
+## Capture, save, and keep working
+
+By default, a finished capture is saved silently and copied to the system clipboard. ScreenshotKing does not open its editor or a save dialog automatically. Choose **Edit Recent Screenshot** from the menu bar or File menu, or open a capture from the library, when you want to annotate it. Silent saves use your configured folder, or `~/Pictures/ScreenshotKing` if none is set.
+
+![ScreenshotKing editor with a captured image and annotation toolbar](docs/assets/editor-build12.png)
+
+### Screenshot and recording
+
+- Capture a region, window, or screen; repeat the last selection, set a delay, or choose a fixed ratio or pixel size.
+- Capture long vertical or horizontal pages by scrolling automatically or adding sections manually. Long capture is limited to 30 frames; compatibility with dynamic pages and sticky headers still needs broader verification.
+- Record the screen with optional system audio. System audio, microphone, and camera are off by default. Microphone and camera recording paths have not been live-verified for this release.
+
+### Annotate when needed
+
+The editor includes notes and numbered steps with explanations, shapes, arrows, freehand and highlighter tools, text, number markers, pixelation and blur, crop, stickers, magnifier, highlights, and tiled watermarks. Adjust object appearance, move or copy objects, undo and redo, and export PNG, JPEG, or HEIC.
+
+![Native ScreenshotKing build 9 export showing notes and numbered steps with explanatory text](docs/assets/notes-and-steps.png)
+
+*Actual app export from a synthetic note-and-step test in build9.*
+
+<details>
+<summary>Annotation renderer sample</summary>
+
+This image is a renderer test sample, not a screenshot of the app toolbar.
+
+![Renderer test sample showing annotation styles on a synthetic image](docs/assets/annotation-tools.png)
+</details>
+
+Editable `.skedit` source is saved when working through the editor and library. A raw capture saved in the default silent flow is not automatically an annotated project.
+
+### Local clipboard history
+
+Clipboard history can retain text, rich text, images, and multiple files with their item formats and order. Search, favorite, tag, categorize, copy in the original format or as plain text, and back up or restore history. Clipboard monitoring is **off by default**; active paste is optional and requires Accessibility permission.
+
+### OCR and translation
+
+Use Apple Vision for local text and QR/barcode recognition. Apple Translation can translate recognized text or create a translated image overlay. Offline language assets may need to be downloaded first; English-to-Simplified-Chinese translation has been verified on this machine.
+
+## Implementation at a glance
+
+| User outcome | Implementation | Source |
+|---|---|---|
+| Capture a screen region or record a clip with native macOS frameworks | AppKit capture flow and ScreenCaptureKit recording | [`Capture.swift`](Sources/Capture.swift) · [`Recorder.swift`](Sources/Recorder.swift) |
+| Save editable notes and numbered steps, then reopen the project | Annotation objects are stored in `.skedit` JSON with source and working PNG images | [`ImageEditor.swift`](Sources/ImageEditor.swift) · [`AnnotationStyle.swift`](Sources/AnnotationStyle.swift) |
+| Keep clipboard history locally with item types and formats | Structured pasteboard entries, search, and history management | [`Clipboard.swift`](Sources/Clipboard.swift) |
+| Recognize text and codes, then translate with Apple Translation | Vision recognition and system translation integration | [`ImageIntelligence.swift`](Sources/ImageIntelligence.swift) |
+| Export captures without overwriting an existing file | Image encoding and collision-safe output naming | [`Export.swift`](Sources/Export.swift) |
+
+The release ZIP is **2.3 MiB** and the installed app is about **4.7 MiB**. These are package-size measurements, not speed benchmarks.
+
+## Install and use
+
+1. Download the Apple Silicon ZIP above and expand it.
+2. Move `ScreenshotKing.app` to Applications and open it.
+3. Allow Screen & System Audio Recording when prompted to capture. Accessibility permission is needed for automatic scrolling and active paste.
+4. Capture with a shortcut, then open **Edit Recent Screenshot** when you want to annotate.
+
+The app UI is primarily in Simplified Chinese. These menu labels are useful when navigating it:
+
+| English | Menu label |
 |---|---|
-| 区域 / 窗口截图 | ⌃⌥⌘1 |
-| 剪贴板历史 | ⌃⌥⌘2 |
-| 重复上次选区 | ⌃⌥⌘3 |
-| 长截图 | ⌃⌥⌘4 |
-| 开始 / 停止录屏 | ⌃⌥⌘R |
+| Edit Recent Screenshot | 编辑最近截图 |
+| Screenshot Library | 截图库 |
+| Settings | 设置 |
 
-设置中可以重新录入快捷键。注册冲突会显示错误。选区：拖动框选，点击选择窗口，拖动八个控制点调整；回车完成、双击完成、Esc 取消、空格切换窗口识别。选区上方可切换全屏、固定比例或指定像素尺寸。默认静默保存，不打开编辑器。需要标注时从菜单栏“编辑最近截图”或截图库进入。设置可切换为“打开编辑器”；此模式下可选区内直接标注，使用同一套编辑画布。
+Default shortcuts:
 
-首次截图需要系统的屏幕与系统音频录制权限；自动滚动和主动粘贴还需要辅助功能权限。录屏的系统声音、麦克风和摄像头默认全部关闭。麦克风和摄像头只在你开启并开始录屏时请求权限。
+| Action | Shortcut |
+|---|---|
+| Region / window capture | `⌃⌥⌘1` |
+| Clipboard history | `⌃⌥⌘2` |
+| Repeat previous selection | `⌃⌥⌘3` |
+| Long screenshot | `⌃⌥⌘4` |
+| Start / stop recording | `⌃⌥⌘R` |
 
-本地开发使用 ad hoc 签名，重新编译会改变代码签名；macOS 可能要求对新构建重新授权。本机未检测到可用的开发者签名证书。此版本未公证。
+Shortcuts can be changed in Settings. Press Escape to cancel a capture.
 
-## 已实现的模块
+## Build and run tests
 
-- 区域、窗口、全屏、重复选区、延迟截图；多显示器坐标转换；窗口 / 辅助功能元素识别；像素尺寸、参考线、选区放大镜。
-- 独立及原位编辑器：备注、带编号和说明的步骤（一体/连线）、8种形状/6种填充、7种箭头、普通/荧光画笔、文字、编号、高亮、矩形或涂抹马赛克/模糊、裁剪、Emoji/本地PNG贴纸、局部放大、平铺水印；逐对象文字/颜色/字体/格式/底色/描边、选中/移动/复制/删除、撤销重做、画布扩展与背景、圆角、投影、原始 / 1x 输出、拾色；PNG / JPEG / HEIC、系统分享、钉图。
-- 本地 OCR、二维码 / 条形码识别；Apple 翻译文字与图片覆盖。首次需要离线语言包；本机英语→简体中文的文字与图片实际翻译已验收。
-- 本地截图库与 `.skedit` 编辑源自动保存，重新打开可继续标注；导出文件命名、默认文件夹、不覆盖同名文件、Finder 选中和复制路径。
-- 纵向 / 横向长截图，手动添加或自动滚动，重叠匹配；30 帧上限。原生测试页面自动滚动、连续行拼接及暂停取消已验收；动态页面、固定导航栏等仍需兼容性验证。
-- ScreenCaptureKit MP4 / H.264 录屏、系统声音、麦克风、摄像头叠层、静默录屏与停止保存。麦克风 / 摄像头未获本次实录验收授权，保持关闭。
-- 剪贴板文本 / 富文本 / 图片 / 多文件历史，保留每个原始 item 的全部格式与顺序；监听暂停、去重、搜索、类型 / 收藏 / 分类 / 标签筛选、原格式 / 纯文本复制、批量文本复制、主动粘贴请求、图片保存 / 钉图、保留与容量清理、备份导入导出。监听默认关闭。Option+1–9 可执行对应记录的数字快捷操作。
+Requirements: macOS 15 or later, Xcode command-line tools, and an Apple Silicon Mac.
 
-iCloud 同步已按用户明确要求排除。
+```sh
+./scripts/build.sh
+open build/ScreenshotKing.app
+./scripts/test.sh
+```
 
-操作方法见 [截图与标注操作](docs/screenshot-workflow.md)。
+The app is implemented in Swift using AppKit and SwiftUI. Screen capture and recording use ScreenCaptureKit; OCR and code recognition use Vision; translation uses Apple Translation. The test script covers geometry, image export and processing, document recovery, local clipboard behavior, OCR, and QR recognition. These tests use a private pasteboard; native QA helpers are a separate matter and can touch the system clipboard.
 
-## 数据与验证
+See the [capture and annotation guide (Chinese)](docs/screenshot-workflow.md) for detailed usage, and [GitHub publishing and README maintenance notes (Chinese)](docs/github-publishing.md) for the repository's publication and localization approach.
 
-只使用 ScreenshotKing 自己的数据目录；没有导入或读取浮引的用户剪贴板历史。剪贴板目录权限为 0700，数据文件 0600；跳过 concealed / transient / password 等敏感标记，限制单项和单次采集大小。没有标记的敏感内容无法自动保证被识别。
+## Scope and verification
 
-运行 `scripts/test.sh` 可重现几何、私有剪贴板、图像像素、文档恢复、导出、OCR 和二维码测试。测试不修改系统剪贴板。真实 UI 验收和未通过项见 `docs/verification.md`；功能证据与覆盖边界见 `docs/parity-matrix.md`。
+ScreenshotKing is independently implemented. It does not import another app's clipboard database or link its executable, private interfaces, or resources. It has no iCloud synchronization. This repository does not currently include a software license.
 
-## REA
+The release verifies silent save and clipboard image output, reopening a capture for editing, and selected annotation and clipboard behavior. Some areas have implementation or automated coverage without complete live verification, including microphone and camera recording, dynamic long-page layouts, and full compatibility with other screenshot tools. See the [verification record](docs/verification.md) and [feature coverage matrix](docs/parity-matrix.md) for evidence and limits.
 
-用户给出的 [rea-cn](https://github.com/bbylw/rea-cn) 是中文说明站；安装的是其指向的 `rea-agents@6.7.0`，已注册 Codex MCP 和匹配 skill。REA MCP 握手与版本已实测，Ghidra 12.1.3 通过 CLI 完成 Shottr 的函数分析。浮引的两次 Ghidra 深层分析超时，不能将静态资源和导入符号等同于已确认的内部算法。
+## Feedback
 
-原始应用保持原样。实现未链接两款应用的可执行文件、私有接口或资源。逆向记录见 `docs/rea-investigation.md`，静态盘点见 `docs/fuguang-static-inventory.md`。`evidence/` 仅为本机分析与验收材料，不加入 Git，也不随 `.app` 分发。文档中的 evidence 文件名为本机验收索引；原应用二进制、资源和个人截图均不发布。
-
-当前固定安装版本：`/Applications/ScreenshotKing.app`（0.3.0 build12，约4.7MB）。工程构建目录与安装包分开；重新编译工程不会自动覆盖安装包。
-
-0.3.0 build10 加入截图框与皇冠 logo，包含16–1024px macOS图标和主页标识。可分发包：`build/ScreenshotKing-0.3.0-build10-macOS-arm64.zip`（约2.3MB）。
-
-0.3.0 build11 历史行为：截图完成后自动复制图片，同时保留编辑窗口；可在“设置 → 截图 → 截图后自动复制”关闭。导入图片和取消截图不会走该复制入口。安装时更新应用包时间并重新登记图标，避免Finder保留旧显示。分发包：`build/ScreenshotKing-0.3.0-build11-macOS-arm64.zip`。
-
-0.3.0 build12 默认“静默保存（稍后编辑）”，截图后自动复制并保存到已配置文件夹，未配置时使用 `~/Pictures/ScreenshotKing`。不弹编辑器、保存面板或 Finder；手动从菜单栏“编辑最近截图”或截图库打开标注。自动保存忽略手动保存的询问位置、Finder选中、复制路径选项，避免打断或替换已复制的图片。分发包：`build/ScreenshotKing-0.3.0-build12-macOS-arm64.zip`。
+Found a bug or have a feature request? [Open an issue](https://github.com/StarrHuang/screenshotking/issues) and include your macOS version, Mac model, and steps to reproduce when relevant.
