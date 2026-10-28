@@ -27,7 +27,7 @@ private struct StoredMark: Codable {
         guard let tool = ImageEditorTool(rawValue: tool), color.count == 4,
               points.allSatisfy({ $0.count == 2 && $0.allSatisfy(\.isFinite) }), width.isFinite, width > 0,
               color.allSatisfy({ $0.isFinite && (0...1).contains($0) }) else {
-            throw ImageEditorDocumentError.invalidDocument("A saved annotation has invalid fields.")
+            throw ImageEditorDocumentError.invalidDocument(L("保存的标注包含无效字段。"))
         }
         let restoredNumber = stepNumber ?? (tool == .step ? Int(text) : nil)
         let restoredText = tool == .step && stepNumber == nil && Int(text) != nil ? "" : text
@@ -86,9 +86,9 @@ public enum ImageEditorDocumentError: Error, LocalizedError {
 
     public var errorDescription: String? {
         switch self {
-        case let .invalidDocument(message): return "The editing document is invalid: \(message)"
-        case let .missingImage(url): return "The editing document is missing its image file: \(url.path)"
-        case .cannotEncodeImage: return "An image could not be encoded while saving the editing document."
+        case let .invalidDocument(message): return LF("编辑文档无效：%@", message)
+        case let .missingImage(url): return LF("编辑文档缺少图片文件：%@", url.path)
+        case .cannotEncodeImage: return L("保存编辑文档时无法编码图片。")
         }
     }
 }
@@ -97,16 +97,16 @@ public enum ImageEditorDocumentError: Error, LocalizedError {
 public enum ImageEditorDocument {
     public static func load(from url: URL) throws -> ImageEditorDocumentState {
         let jsonURL = documentURL(for: url)
-        guard FileManager.default.fileExists(atPath: jsonURL.path) else { throw ImageEditorDocumentError.invalidDocument("document.json is missing.") }
+        guard FileManager.default.fileExists(atPath: jsonURL.path) else { throw ImageEditorDocumentError.invalidDocument(L("缺少 document.json 文件。")) }
         let stored = try JSONDecoder().decode(StoredDocument.self, from: Data(contentsOf: jsonURL))
-        guard stored.version == 1 else { throw ImageEditorDocumentError.invalidDocument("Unsupported version \(stored.version).") }
+        guard stored.version == 1 else { throw ImageEditorDocumentError.invalidDocument(LF("不支持编辑文档版本 %ld。", stored.version)) }
         guard stored.sourceSize.count == 2, stored.workingSize.count == 2,
               stored.sourceSize.allSatisfy({ $0.isFinite && $0 > 0 }), stored.workingSize.allSatisfy({ $0.isFinite && $0 > 0 }) else {
-            throw ImageEditorDocumentError.invalidDocument("Saved image dimensions are invalid.")
+            throw ImageEditorDocumentError.invalidDocument(L("保存的图片尺寸无效。"))
         }
         guard URL(fileURLWithPath: stored.sourceFilename).lastPathComponent == stored.sourceFilename,
               URL(fileURLWithPath: stored.workingFilename).lastPathComponent == stored.workingFilename else {
-            throw ImageEditorDocumentError.invalidDocument("Saved image file names are invalid.")
+            throw ImageEditorDocumentError.invalidDocument(L("保存的图片文件名无效。"))
         }
         let directory = jsonURL.deletingLastPathComponent()
         let source = try loadImage(directory.appendingPathComponent(stored.sourceFilename), size: NSSize(width: stored.sourceSize[0], height: stored.sourceSize[1]))
@@ -146,7 +146,7 @@ public enum ImageEditorDocument {
     private static func loadImage(_ url: URL, size: NSSize) throws -> NSImage {
         guard FileManager.default.fileExists(atPath: url.path) else { throw ImageEditorDocumentError.missingImage(url) }
         let data = try Data(contentsOf: url)
-        guard let rep = NSBitmapImageRep(data: data), let cg = rep.cgImage else { throw ImageEditorDocumentError.invalidDocument("An image file could not be decoded.") }
+        guard let rep = NSBitmapImageRep(data: data), let cg = rep.cgImage else { throw ImageEditorDocumentError.invalidDocument(L("无法解码图片文件。")) }
         return NSImage(cgImage: cg, size: size)
     }
 
@@ -170,24 +170,24 @@ public enum ImageEditorTool: String, CaseIterable, Identifiable {
     public var id: String { rawValue }
     fileprivate var title: String {
         switch self {
-        case .select: return "选择"
-        case .arrow: return "箭头"
-        case .line: return "直线"
-        case .rectangle: return "矩形"
-        case .ellipse: return "椭圆"
-        case .pen: return "画笔"
-        case .text: return "文字"
-        case .number: return "编号"
-        case .highlight: return "高亮"
-        case .mosaic: return "马赛克"
-        case .blur: return "模糊"
-        case .crop: return "裁剪"
-        case .note: return "备注气泡"
-        case .sticker: return "贴纸"
-        case .magnifier: return "放大镜"
-        case .watermark: return "水印"
-        case .step: return "步骤"
-        case .shape: return "形状"
+        case .select: return L("选择")
+        case .arrow: return L("箭头")
+        case .line: return L("直线")
+        case .rectangle: return L("矩形")
+        case .ellipse: return L("椭圆")
+        case .pen: return L("画笔")
+        case .text: return L("文字")
+        case .number: return L("编号")
+        case .highlight: return L("高亮")
+        case .mosaic: return L("马赛克")
+        case .blur: return L("模糊")
+        case .crop: return L("裁剪")
+        case .note: return L("备注气泡")
+        case .sticker: return L("贴纸")
+        case .magnifier: return L("放大镜")
+        case .watermark: return L("水印")
+        case .step: return L("步骤")
+        case .shape: return L("形状")
         }
     }
     fileprivate var symbol: String {
@@ -214,13 +214,13 @@ public enum ImageEditorTool: String, CaseIterable, Identifiable {
     }
     fileprivate var toolbarTitle: String {
         switch self {
-        case .note: "备注"
-        case .step: "步骤"
-        case .shape: "形状"
-        case .arrow: "箭头"
-        case .text: "文字"
-        case .highlight: "高亮"
-        case .pen: "画笔"
+        case .note: L("备注")
+        case .step: L("步骤")
+        case .shape: L("形状")
+        case .arrow: L("箭头")
+        case .text: L("文字")
+        case .highlight: L("高亮")
+        case .pen: L("画笔")
         default: title
         }
     }
@@ -308,7 +308,7 @@ public final class ImageEditorController: NSObject, NSWindowDelegate {
         let root = ImageEditorContent(image: rootImage, sourceImage: originalImage, initialMarks: state?.marks ?? [], initialStyle: initialStyle, hasDocumentURL: documentURL != nil, onPin: onPin, onCopy: onCopy, onDocumentChange: saveDocument, onClose: { closeEditor?() })
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1050, height: 740), styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
         closeEditor = { [weak window] in window?.close() }
-        window.title = "图片编辑"
+        window.title = L("图片编辑")
         window.identifier = NSUserInterfaceItemIdentifier("screenshotking.editor")
         window.minSize = NSSize(width: 760, height: 520)
         window.isReleasedWhenClosed = false
@@ -375,10 +375,10 @@ public struct ImageEditorContent: View {
 
     private var toolUsageHint: String {
         switch tool {
-        case .note, .text: "点击图片输入文字，回车完成，双击修改"
-        case .step: "点击或拖出步骤位置，输入说明，回车完成"
-        case .select: "点击选择标注，拖动移动；双击文字编辑"
-        default: "拖动添加标注"
+        case .note, .text: L("点击图片输入文字，回车完成，双击修改")
+        case .step: L("点击或拖出步骤位置，输入说明，回车完成")
+        case .select: L("点击选择标注，拖动移动；双击文字编辑")
+        default: L("拖动添加标注")
         }
     }
 
@@ -450,30 +450,30 @@ public struct ImageEditorContent: View {
 
     private var actionToolbar: some View {
         HStack(spacing:10) {
-            Button { canvasRef?.undoLastEdit(); revision += 1 } label: { Image(systemName:"arrow.uturn.backward") }.help("撤销")
-            Button { canvasRef?.redoLastEdit(); revision += 1 } label: { Image(systemName:"arrow.uturn.forward") }.help("重做")
-            Menu("编辑") {
-                Button("复制标注") { canvasRef?.duplicateSelectedMark() }
-                Button("删除标注") { canvasRef?.deleteSelectedMark() }
-                Button("应用裁剪") { applyCrop() }.disabled(crop == nil)
+            Button { canvasRef?.undoLastEdit(); revision += 1 } label: { Image(systemName:"arrow.uturn.backward") }.help(L("撤销"))
+            Button { canvasRef?.redoLastEdit(); revision += 1 } label: { Image(systemName:"arrow.uturn.forward") }.help(L("重做"))
+            Menu(L("编辑")) {
+                Button(L("复制标注")) { canvasRef?.duplicateSelectedMark() }
+                Button(L("删除标注")) { canvasRef?.deleteSelectedMark() }
+                Button(L("应用裁剪")) { applyCrop() }.disabled(crop == nil)
                 Divider()
-                Button("适应窗口") { zoomToFit = true }
-                Button("原始像素") { zoomToFit = false }
-                Button("工具栏布局…") { showToolSettings = true }
-                Menu("扩展画布") {
-                    Button("留白") { extendCanvas(theme:.white) }
-                    Button("奶油色") { extendCanvas(theme:NSColor(calibratedRed:0.98,green:0.95,blue:0.88,alpha:1)) }
-                    Button("浅灰") { extendCanvas(theme:NSColor(calibratedWhite:0.92,alpha:1)) }
-                    Button("深色") { extendCanvas(theme:NSColor(calibratedWhite:0.12,alpha:1)) }
+                Button(L("适应窗口")) { zoomToFit = true }
+                Button(L("原始像素")) { zoomToFit = false }
+                Button(L("工具栏布局…")) { showToolSettings = true }
+                Menu(L("扩展画布")) {
+                    Button(L("留白")) { extendCanvas(theme:.white) }
+                    Button(L("奶油色")) { extendCanvas(theme:NSColor(calibratedRed:0.98,green:0.95,blue:0.88,alpha:1)) }
+                    Button(L("浅灰")) { extendCanvas(theme:NSColor(calibratedWhite:0.92,alpha:1)) }
+                    Button(L("深色")) { extendCanvas(theme:NSColor(calibratedWhite:0.12,alpha:1)) }
                 }
             }
-            Button("识别 / 翻译") { ImageIntelligence.show(image:renderedImage()) { replacement in canvasRef?.replaceImage(replacement) } }
+            Button(L("识别 / 翻译")) { ImageIntelligence.show(image:renderedImage()) { replacement in canvasRef?.replaceImage(replacement) } }
             Spacer(minLength:8)
-            Button("钉图") { onPin(renderedImage()) }
-            Button("分享") { shareImage() }
-            Button("复制") { copyImage() }.keyboardShortcut("c",modifiers:.command)
-            Button("保存") { saveImage() }.keyboardShortcut("s",modifiers:.command)
-            Button("关闭",action:onClose)
+            Button(L("钉图")) { onPin(renderedImage()) }
+            Button(L("分享")) { shareImage() }
+            Button(L("复制")) { copyImage() }.keyboardShortcut("c",modifiers:.command)
+            Button(L("保存")) { saveImage() }.keyboardShortcut("s",modifiers:.command)
+            Button(L("关闭"),action:onClose)
         }.padding(.horizontal,12).padding(.vertical,8)
     }
 
@@ -493,14 +493,14 @@ public struct ImageEditorContent: View {
                 }.padding(.vertical,4)
             }
             Divider().frame(height:24)
-            Button("样式参数") { showAnnotationInspector.toggle() }
+            Button(L("样式参数")) { showAnnotationInspector.toggle() }
                 .popover(isPresented:$showAnnotationInspector) { AnnotationInspector(tool:tool,style:$annotationStyle,color:$color,width:$width,onThemeChanged:{canvasRef?.refreshTheme();revision += 1}) }
-            ColorPicker("颜色",selection:Binding(get:{color},set:{color = $0;annotationStyle.colorPreset = .custom})).labelsHidden().frame(width:30)
-            Menu("主题") {
-                Menu("大小") { ForEach(AnnotationSize.allCases) { value in Button(value.title) { AnnotationTheme.size = value;annotationStyle.followsThemeSize = true;canvasRef?.refreshTheme();revision += 1 } } }
-                Menu("颜色") { ForEach([AnnotationColorPreset.red,.green,.blue,.purple,.white,.black],id:\.self) { value in Button(value.title) { AnnotationTheme.color = value.color;annotationStyle.colorPreset = .theme;color = Color(nsColor:value.color);canvasRef?.refreshTheme();revision += 1 } } }
+            ColorPicker(L("颜色"),selection:Binding(get:{color},set:{color = $0;annotationStyle.colorPreset = .custom})).labelsHidden().frame(width:30)
+            Menu(L("主题")) {
+                Menu(L("大小")) { ForEach(AnnotationSize.allCases) { value in Button(value.title) { AnnotationTheme.size = value;annotationStyle.followsThemeSize = true;canvasRef?.refreshTheme();revision += 1 } } }
+                Menu(L("颜色")) { ForEach([AnnotationColorPreset.red,.green,.blue,.purple,.white,.black],id:\.self) { value in Button(value.title) { AnnotationTheme.color = value.color;annotationStyle.colorPreset = .theme;color = Color(nsColor:value.color);canvasRef?.refreshTheme();revision += 1 } } }
             }
-            if tool == .sticker { Button("贴纸库") { showStickerPicker = true } }
+            if tool == .sticker { Button(L("贴纸库")) { showStickerPicker = true } }
         }.padding(.horizontal,10).frame(height:48)
     }
 
@@ -516,11 +516,11 @@ public struct ImageEditorContent: View {
 
     private var exportControls: some View {
         HStack(spacing: 12) {
-            Text("圆角"); Slider(value: $cornerRadius, in: 0...40).frame(width: 110)
-            Toggle("导出阴影", isOn: $dropShadow)
-            Slider(value: $shadowStrength, in: 0.05...0.8).frame(width: 100).help("阴影强度")
-            Toggle("预览阴影", isOn: $previewShadow)
-            Toggle("按 1x 输出", isOn: $standard1x)
+            Text(L("圆角")); Slider(value: $cornerRadius, in: 0...40).frame(width: 110)
+            Toggle(L("导出阴影"), isOn: $dropShadow)
+            Slider(value: $shadowStrength, in: 0.05...0.8).frame(width: 100).help(L("阴影强度"))
+            Toggle(L("预览阴影"), isOn: $previewShadow)
+            Toggle(L("按 1x 输出"), isOn: $standard1x)
             Spacer()
         }.font(.caption).padding(.horizontal, 12).padding(.bottom, 7)
     }
@@ -546,7 +546,7 @@ public struct ImageEditorContent: View {
                 VStack(spacing: 0) {
                     actionToolbar; annotationToolbar; Divider(); canvasView
                     if presentation == .window {
-                        HStack { Text("\(pixelWidth) × \(pixelHeight) 像素"); Spacer(); Text(hasDocumentURL ? "编辑源自动保存 · \(toolUsageHint)" : toolUsageHint) }.font(.system(.caption, design: .monospaced)).foregroundStyle(.secondary).padding(.horizontal, 12).padding(.vertical, 6)
+                        HStack { Text(LF("%ld × %ld 像素", pixelWidth, pixelHeight)); Spacer(); Text(hasDocumentURL ? LF("编辑源自动保存 · %@", toolUsageHint) : toolUsageHint) }.font(.system(.caption, design: .monospaced)).foregroundStyle(.secondary).padding(.horizontal, 12).padding(.vertical, 6)
                     }
                     exportControls
                 }
@@ -570,8 +570,8 @@ public struct ImageEditorContent: View {
                 showStickerPicker = false
             }
         }
-        .alert("编辑文档无法读取", isPresented: Binding(get: { loadErrorMessage != nil }, set: { if !$0 { loadErrorMessage = nil } })) {
-            Button("关闭", role: .cancel) { loadErrorMessage = nil; onClose() }
+        .alert(L("编辑文档无法读取"), isPresented: Binding(get: { loadErrorMessage != nil }, set: { if !$0 { loadErrorMessage = nil } })) {
+            Button(L("关闭"), role: .cancel) { loadErrorMessage = nil; onClose() }
         } message: { Text(loadErrorMessage ?? "") }
     }
 
@@ -582,9 +582,9 @@ public struct ImageEditorContent: View {
     }
     private var toolSettings:some View {
         VStack(alignment:.leading,spacing:12) {
-            Text("工具栏布局").font(.headline)
-            Text("本应用单键快捷键仅在画布聚焦时生效；Shift 与空格保留给等比和拖动画布。").font(.caption).foregroundStyle(.secondary)
-            Picker("新截图默认工具",selection:$defaultToolString) { ForEach(ImageEditorTool.allCases) { Text($0.title).tag($0.rawValue) } }
+            Text(L("工具栏布局")).font(.headline)
+            Text(L("本应用单键快捷键仅在画布聚焦时生效；Shift 与空格保留给等比和拖动画布。")).font(.caption).foregroundStyle(.secondary)
+            Picker(L("新截图默认工具"),selection:$defaultToolString) { ForEach(ImageEditorTool.allCases) { Text($0.title).tag($0.rawValue) } }
             List {
                 ForEach(orderedTools) { item in
                     HStack {
@@ -592,16 +592,16 @@ public struct ImageEditorContent: View {
                             var hidden = Set(hiddenToolString.split(separator:",").map(String.init));if visible { hidden.remove(item.rawValue) } else { hidden.insert(item.rawValue) };hiddenToolString = hidden.sorted().joined(separator:",")
                         }))
                         Spacer()
-                        TextField("键",text:shortcutBinding(for:item)).frame(width:46).help("单个字母或数字；留空禁用")
-                        Button { moveTool(item,by:-1) } label:{ Image(systemName:"chevron.up") }.help("上移")
-                        Button { moveTool(item,by:1) } label:{ Image(systemName:"chevron.down") }.help("下移")
+                        TextField(L("键"),text:shortcutBinding(for:item)).frame(width:46).help(L("单个字母或数字；留空禁用"))
+                        Button { moveTool(item,by:-1) } label:{ Image(systemName:"chevron.up") }.help(L("上移"))
+                        Button { moveTool(item,by:1) } label:{ Image(systemName:"chevron.down") }.help(L("下移"))
                     }
                 }
             }
             HStack {
-                Button("恢复默认布局") { toolOrderString = ImageEditorTool.allCases.map(\.rawValue).joined(separator:",");hiddenToolString = "" }
-                Button("恢复默认快捷键") { toolShortcutValues = ImageEditorToolShortcuts.defaults;ImageEditorToolShortcuts.save(toolShortcutValues) }
-                Spacer();Button("完成") { showToolSettings = false }.keyboardShortcut(.defaultAction)
+                Button(L("恢复默认布局")) { toolOrderString = ImageEditorTool.allCases.map(\.rawValue).joined(separator:",");hiddenToolString = "" }
+                Button(L("恢复默认快捷键")) { toolShortcutValues = ImageEditorToolShortcuts.defaults;ImageEditorToolShortcuts.save(toolShortcutValues) }
+                Spacer();Button(L("完成")) { showToolSettings = false }.keyboardShortcut(.defaultAction)
             }
         }.padding(20).frame(width:400,height:500)
     }
@@ -640,19 +640,19 @@ public struct ImageEditorContent: View {
         do {
             try VNImageRequestHandler(cgImage: cg).perform([request])
             let text = (request.results ?? []).compactMap { $0.topCandidates(1).first?.string }.joined(separator: "\n")
-            let alert = NSAlert(); alert.messageText = "Recognized Text"
+            let alert = NSAlert(); alert.messageText = L("识别出的文字")
             let field = NSTextView(frame: NSRect(x: 0, y: 0, width: 460, height: 240)); field.string = text; field.isEditable = true
             alert.accessoryView = NSScrollView(frame: field.frame); (alert.accessoryView as? NSScrollView)?.documentView = field
-            alert.addButton(withTitle: "复制文字"); alert.addButton(withTitle: "关闭")
+            alert.addButton(withTitle: L("复制文字")); alert.addButton(withTitle: L("关闭"))
             if alert.runModal() == .alertFirstButtonReturn { NSPasteboard.general.clearContents(); NSPasteboard.general.setString(text, forType: .string) }
         } catch { showError(error) }
     }
     private func applyCrop() { canvasRef?.applyCrop(); crop = nil; revision += 1 }
     private func extendCanvas(theme: NSColor) {
-        let alert = NSAlert(); alert.messageText = "扩展画布"
+        let alert = NSAlert(); alert.messageText = L("扩展画布")
         let field = NSTextField(string: "40"); field.frame = NSRect(x: 0, y: 0, width: 100, height: 24); alert.accessoryView = field
-        alert.informativeText = "输入四周增加的像素数。"
-        alert.addButton(withTitle: "扩展"); alert.addButton(withTitle: "取消")
+        alert.informativeText = L("输入四周增加的像素数。")
+        alert.addButton(withTitle: L("扩展")); alert.addButton(withTitle: L("取消"))
         guard alert.runModal() == .alertFirstButtonReturn, let padding = Int(field.stringValue), padding > 0 else { return }
         canvasRef?.extendCanvas(padding: padding, color: theme)
         revision += 1
@@ -761,8 +761,8 @@ private struct EditorCanvas: NSViewRepresentable {
     public init(image: NSImage, marks: [EditorMark] = [], shortcutDefaults:UserDefaults = .standard) { self.image = image; self.marks = marks;self.shortcutDefaults = shortcutDefaults; super.init(frame: .zero); wantsLayer = true;setAccessibilityElement(true);setAccessibilityRole(.button);setAccessibilityLabel(accessibilityDescription); number = (marks.compactMap { $0.tool == .step ? ($0.stepNumber ?? Int($0.text)) : ($0.tool == .number ? Int($0.text) : nil) }.max() ?? 0) + 1 }
     required init?(coder: NSCoder) { fatalError("init(coder:) is unsupported") }
     private var accessibilityDescription: String {
-        let creation = [.note, .step, .text].contains(tool) ? "，按下可在画布中心创建并编辑" : ""
-        return "标注画布，当前工具：\(tool.toolbarTitle)\(creation)"
+        let creation = [.note, .step, .text].contains(tool) ? L("，按下可在画布中心创建并编辑") : ""
+        return LF("标注画布，当前工具：%@%@", tool.toolbarTitle, creation)
     }
     public override func accessibilityPerformPress() -> Bool {
         guard [.note, .step, .text].contains(tool), !bounds.isEmpty else { return false }
@@ -992,9 +992,9 @@ private struct EditorCanvas: NSViewRepresentable {
         let editingFontSize = max(12, min(36, CGFloat(mark.style.resolvedFontSize) * imageScale * scale))
         field.font = NSFont(name: mark.style.fontName, size: editingFontSize) ?? NSFont.systemFont(ofSize: editingFontSize)
         switch mark.tool {
-        case .note: field.placeholderString = "输入备注，按回车完成"; field.setAccessibilityLabel("备注内容")
-        case .step: field.placeholderString = "输入步骤说明，按回车完成"; field.setAccessibilityLabel("步骤说明")
-        default: field.placeholderString = "输入文字，按回车完成"; field.setAccessibilityLabel("标注文字")
+        case .note: field.placeholderString = L("输入备注，按回车完成"); field.setAccessibilityLabel(L("备注内容"))
+        case .step: field.placeholderString = L("输入步骤说明，按回车完成"); field.setAccessibilityLabel(L("步骤说明"))
+        default: field.placeholderString = L("输入文字，按回车完成"); field.setAccessibilityLabel(L("标注文字"))
         }
         field.delegate = self
         addSubview(field)

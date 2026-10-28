@@ -5,14 +5,14 @@ public enum AnnotationShape: String, Codable, CaseIterable, Identifiable {
     public var id: String { rawValue }
     public var title: String {
         switch self {
-        case .rectangle: "矩形"
-        case .roundedRectangle: "圆角矩形"
-        case .circle: "圆形"
-        case .triangle: "三角形"
-        case .chatBubble: "聊天框"
-        case .star: "五角星"
-        case .pentagon: "五边形"
-        case .hexagon: "六边形"
+        case .rectangle: L("矩形")
+        case .roundedRectangle: L("圆角矩形")
+        case .circle: L("圆形")
+        case .triangle: L("三角形")
+        case .chatBubble: L("聊天框")
+        case .star: L("五角星")
+        case .pentagon: L("五边形")
+        case .hexagon: L("六边形")
         }
     }
 }
@@ -22,12 +22,12 @@ public enum AnnotationFill: String, Codable, CaseIterable, Identifiable {
     public var id: String { rawValue }
     public var title: String {
         switch self {
-        case .outline: "镂空"
-        case .translucent: "半透明"
-        case .solid: "实心"
-        case .dashedOutline: "虚线镂空"
-        case .dashedTranslucent: "虚线半透明"
-        case .hatched: "斜纹填充"
+        case .outline: L("镂空")
+        case .translucent: L("半透明")
+        case .solid: L("实心")
+        case .dashedOutline: L("虚线镂空")
+        case .dashedTranslucent: L("虚线半透明")
+        case .hatched: L("斜纹填充")
         }
     }
 }
@@ -37,13 +37,13 @@ public enum AnnotationArrow: String, Codable, CaseIterable, Identifiable {
     public var id: String { rawValue }
     public var title: String {
         switch self {
-        case .straight: "直线"
-        case .single: "单箭头"
-        case .cone: "锥形箭头"
-        case .double: "双箭头"
-        case .dashed: "虚线"
-        case .dashedSingle: "虚线单箭头"
-        case .dashedDouble: "虚线双箭头"
+        case .straight: L("直线")
+        case .single: L("单箭头")
+        case .cone: L("锥形箭头")
+        case .double: L("双箭头")
+        case .dashed: L("虚线")
+        case .dashedSingle: L("虚线单箭头")
+        case .dashedDouble: L("虚线双箭头")
         }
     }
     public var dashed: Bool { self == .dashed || self == .dashedSingle || self == .dashedDouble }
@@ -54,7 +54,7 @@ public enum AnnotationArrow: String, Codable, CaseIterable, Identifiable {
 public enum AnnotationBrush: String, Codable, CaseIterable, Identifiable {
     case pen, highlighter
     public var id: String { rawValue }
-    public var title: String { self == .pen ? "普通笔" : "荧光笔" }
+    public var title: String { self == .pen ? L("普通笔") : L("荧光笔") }
 }
 
 public enum AnnotationMosaicMode: String, Codable, CaseIterable, Identifiable {
@@ -62,10 +62,10 @@ public enum AnnotationMosaicMode: String, Codable, CaseIterable, Identifiable {
     public var id: String { rawValue }
     public var title: String {
         switch self {
-        case .rectangle: "矩形"
-        case .brushSmall: "画笔·小"
-        case .brushMedium: "画笔·中"
-        case .brushLarge: "画笔·大"
+        case .rectangle: L("矩形")
+        case .brushSmall: L("画笔·小")
+        case .brushMedium: L("画笔·中")
+        case .brushLarge: L("画笔·大")
         }
     }
     public var radius: Double {
@@ -78,12 +78,12 @@ public enum AnnotationMosaicStyle: String, Codable, CaseIterable, Identifiable {
     public var id: String { rawValue }
     public var title: String {
         switch self {
-        case .finePixelated: "细像素"
-        case .pixelated: "像素"
-        case .coarsePixelated: "粗像素"
-        case .lightBlur: "轻模糊"
-        case .gaussianBlur: "模糊"
-        case .strongBlur: "强模糊"
+        case .finePixelated: L("细像素")
+        case .pixelated: L("像素")
+        case .coarsePixelated: L("粗像素")
+        case .lightBlur: L("轻模糊")
+        case .gaussianBlur: L("模糊")
+        case .strongBlur: L("强模糊")
         }
     }
 }
@@ -91,14 +91,14 @@ public enum AnnotationMosaicStyle: String, Codable, CaseIterable, Identifiable {
 public enum AnnotationStepStyle: String, Codable, CaseIterable, Identifiable {
     case integrated, connected
     public var id: String { rawValue }
-    public var title: String { self == .integrated ? "一体" : "连线" }
+    public var title: String { self == .integrated ? L("一体") : L("连线") }
 }
 
 public enum AnnotationStepDirection: String, Codable, CaseIterable, Identifiable {
     case right, left, above, below
     public var id: String { rawValue }
     public var title: String {
-        switch self { case .right: "右侧"; case .left: "左侧"; case .above: "上方"; case .below: "下方" }
+        switch self { case .right: L("右侧"); case .left: L("左侧"); case .above: L("上方"); case .below: L("下方") }
     }
 }
 
@@ -107,9 +107,9 @@ public enum AnnotationSize: String, Codable, CaseIterable, Identifiable {
     public var id: String { rawValue }
     public var title: String {
         switch self {
-        case .small: "小"
-        case .medium: "中"
-        case .large: "大"
+        case .small: L("小")
+        case .medium: L("中")
+        case .large: L("大")
         }
     }
     public var fontSize: Double {
@@ -126,14 +126,14 @@ public enum AnnotationColorPreset: String, Codable, CaseIterable, Identifiable {
     public var id: String { rawValue }
     public var title: String {
         switch self {
-        case .red: "红"
-        case .green: "绿"
-        case .blue: "蓝"
-        case .purple: "紫"
-        case .white: "白"
-        case .black: "黑"
-        case .theme: "跟随主题"
-        case .custom: "自定义"
+        case .red: L("红")
+        case .green: L("绿")
+        case .blue: L("蓝")
+        case .purple: L("紫")
+        case .white: L("白")
+        case .black: L("黑")
+        case .theme: L("跟随主题")
+        case .custom: L("自定义")
         }
     }
     public var color: NSColor {

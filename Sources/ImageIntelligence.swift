@@ -23,7 +23,7 @@ enum ImageRecognition {
     @MainActor static func renderTranslations(image: NSImage, blocks: [RecognizedBlock], strings: [String]) throws -> NSImage {
         guard let cg = image.cgImage(forProposedRect:nil,context:nil,hints:nil),
               let context = CGContext(data:nil,width:cg.width,height:cg.height,bitsPerComponent:8,bytesPerRow:0,space:CGColorSpaceCreateDeviceRGB(),bitmapInfo:CGImageAlphaInfo.premultipliedLast.rawValue) else {
-            throw NSError(domain:"ScreenshotKing",code:3,userInfo:[NSLocalizedDescriptionKey:"无法生成翻译图片"])
+            throw NSError(domain:"ScreenshotKing",code:3,userInfo:[NSLocalizedDescriptionKey:L("无法生成翻译图片")])
         }
         context.draw(cg,in:CGRect(x:0,y:0,width:cg.width,height:cg.height))
         NSGraphicsContext.saveGraphicsState(); NSGraphicsContext.current = NSGraphicsContext(cgContext:context,flipped:false)
@@ -41,7 +41,7 @@ enum ImageRecognition {
             (translated as NSString).draw(in:bounds,withAttributes:attrs)
         }
         NSGraphicsContext.restoreGraphicsState()
-        guard let result = context.makeImage() else { throw NSError(domain:"ScreenshotKing",code:4,userInfo:[NSLocalizedDescriptionKey:"无法生成翻译图片"])}
+        guard let result = context.makeImage() else { throw NSError(domain:"ScreenshotKing",code:4,userInfo:[NSLocalizedDescriptionKey:L("无法生成翻译图片")])}
         return NSImage(cgImage:result,size:image.size)
     }
 }
@@ -54,12 +54,12 @@ enum ImageRecognition {
         if #available(macOS 15.0,*) {
             window = NSWindow(contentViewController:NSHostingController(rootView:ImageIntelligenceView(image:image,onImage:onImage)))
         } else {
-            let label = NSTextField(wrappingLabelWithString:"图片翻译需要 macOS 15 或更新版本。可使用编辑器中的本地 OCR 提取文字。")
+            let label = NSTextField(wrappingLabelWithString:L("图片翻译需要 macOS 15 或更新版本。可使用编辑器中的本地 OCR 提取文字。"))
             label.frame = CGRect(x:20,y:20,width:400,height:80)
             window = NSWindow(contentRect:CGRect(x:0,y:0,width:440,height:120),styleMask:[.titled,.closable],backing:.buffered,defer:false)
             window.contentView?.addSubview(label)
         }
-        window.title = "文字、二维码与图片翻译"; window.isReleasedWhenClosed = false
+        window.title = L("文字、二维码与图片翻译"); window.isReleasedWhenClosed = false
         window.styleMask = [.titled,.closable,.resizable]; window.center()
         let controller = NSWindowController(window:window); windows.append(controller)
         let id = ObjectIdentifier(window)
@@ -84,7 +84,7 @@ enum ImageRecognition {
     @State private var translated = ""
     @State private var target = "zh-Hans"
     @State private var config:TranslationSession.Configuration?
-    @State private var status = "正在本地识别…"
+    @State private var status = L("正在本地识别…")
     @State private var busy = false
     @State private var translateImage = false
     var body:some View {
@@ -92,35 +92,35 @@ enum ImageRecognition {
             HSplitView {
                 Image(nsImage:image).resizable().scaledToFit().frame(minWidth:260,minHeight:240).padding(12)
                 VStack(alignment:.leading,spacing:8) {
-                    Text("提取文字").font(.headline)
+                    Text(L("提取文字")).font(.headline)
                     TextEditor(text:$source).font(.system(size:14)).frame(minHeight:150)
                     if !codes.isEmpty {
-                        Text("二维码 / 条形码").font(.headline)
+                        Text(L("二维码 / 条形码")).font(.headline)
                         ForEach(Array(codes.enumerated()),id:\.offset) { code in Text(code.element).textSelection(.enabled).font(.callout) }
                     }
-                    Text("译文").font(.headline)
+                    Text(L("译文")).font(.headline)
                     TextEditor(text:$translated).font(.system(size:14)).frame(minHeight:120)
                 }.padding(12).frame(minWidth:320)
             }
             Divider()
             HStack {
-                Picker("目标语言",selection:$target) {
-                    Text("简体中文").tag("zh-Hans");Text("English").tag("en");Text("日本語").tag("ja");Text("한국어").tag("ko");Text("Français").tag("fr");Text("Deutsch").tag("de");Text("Español").tag("es")
+                Picker(L("目标语言"),selection:$target) {
+                    Text(L("简体中文")).tag("zh-Hans");Text(L("English")).tag("en");Text(L("日本語")).tag("ja");Text(L("한국어")).tag("ko");Text(L("Français")).tag("fr");Text(L("Deutsch")).tag("de");Text(L("Español")).tag("es")
                 }.frame(width:200)
-                Button("复制文字") { copy(source) }.disabled(source.isEmpty)
-                Button("翻译文字") { beginTranslation(image:false) }.disabled(busy || source.isEmpty)
-                Button("翻译图片") { beginTranslation(image:true) }.disabled(busy || blocks.isEmpty)
-                Button("复制译文") { copy(translated) }.disabled(translated.isEmpty)
+                Button(L("复制文字")) { copy(source) }.disabled(source.isEmpty)
+                Button(L("翻译文字")) { beginTranslation(image:false) }.disabled(busy || source.isEmpty)
+                Button(L("翻译图片")) { beginTranslation(image:true) }.disabled(busy || blocks.isEmpty)
+                Button(L("复制译文")) { copy(translated) }.disabled(translated.isEmpty)
             }.padding(.horizontal,12)
             Text(status).font(.callout).foregroundStyle(.secondary).frame(maxWidth:.infinity,alignment:.leading).padding([.horizontal,.bottom],12)
         }.frame(minWidth:850,minHeight:520)
         .task {
-            guard let cg = image.cgImage(forProposedRect:nil,context:nil,hints:nil) else { status = "无法读取图像";return }
+            guard let cg = image.cgImage(forProposedRect:nil,context:nil,hints:nil) else { status = L("无法读取图像");return }
             do {
                 let result = try await Task.detached(priority:.userInitiated) { try ImageRecognition.read(cg) }.value
                 blocks = result.blocks; codes = result.codes; source = blocks.map(\.text).joined(separator:"\n")
-                status = "本地识别完成：\(blocks.count) 段文字，\(codes.count) 个码。翻译使用 Apple 翻译，首次可能需要下载语言。"
-            } catch { status = "识别失败：\(error.localizedDescription)" }
+                status = LF("本地识别完成：%ld 段文字，%ld 个码。翻译使用 Apple 翻译，首次可能需要下载语言。", blocks.count, codes.count)
+            } catch { status = LF("识别失败：%@", error.localizedDescription) }
         }
         .translationTask(config) { session in
             busy = true
@@ -131,12 +131,12 @@ enum ImageRecognition {
                     let ordered = responses.sorted { Int($0.clientIdentifier!)! < Int($1.clientIdentifier!)! }.map(\.targetText)
                     translated = ordered.joined(separator:"\n")
                     let result = try ImageRecognition.renderTranslations(image:image,blocks:blocks,strings:ordered)
-                    onImage(result); status = "翻译图片已送回编辑器，可以撤销。"
+                    onImage(result); status = L("翻译图片已送回编辑器，可以撤销。")
                 } else {
                     translated = try await session.translate(source).targetText
-                    status = "文字翻译完成。"
+                    status = L("文字翻译完成。")
                 }
-            } catch { status = "翻译失败：\(error.localizedDescription)" }
+            } catch { status = LF("翻译失败：%@", error.localizedDescription) }
             busy = false
         }
     }
@@ -145,6 +145,6 @@ enum ImageRecognition {
         translateImage = image
         if config?.target == Locale.Language(identifier:target) { config?.invalidate() }
         else { config = TranslationSession.Configuration(source:nil,target:Locale.Language(identifier:target)) }
-        status = "正在请求 Apple 翻译…"
+        status = L("正在请求 Apple 翻译…")
     }
 }

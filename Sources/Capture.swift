@@ -17,24 +17,24 @@ private struct CaptureConstraintControls: View {
     private var valid:Bool { value.mode != "pixels" || value.pixelWidth > 0 && value.pixelHeight > 0 && CGFloat(value.pixelWidth) <= maxPixelSize.width && CGFloat(value.pixelHeight) <= maxPixelSize.height }
     var body:some View {
         HStack(spacing:10) {
-            Picker("选区",selection:$value.mode) {
-                Text("自由选择").tag("free");Text("全屏").tag("full");Text("固定比例").tag("ratio");Text("指定尺寸").tag("pixels")
+            Picker(L("选区"),selection:$value.mode) {
+                Text(L("自由选择")).tag("free");Text(L("全屏")).tag("full");Text(L("固定比例")).tag("ratio");Text(L("指定尺寸")).tag("pixels")
             }.frame(width:210)
             if value.mode == "ratio" {
-                Picker("比例",selection:$value.ratio) { ForEach(["1:1","16:9","5:4","7:5","4:3","5:3","3:2"],id:\.self) { Text($0).tag($0) } }.frame(width:140)
-                Toggle("竖向",isOn:$value.portrait)
+                Picker(L("比例"),selection:$value.ratio) { ForEach(["1:1","16:9","5:4","7:5","4:3","5:3","3:2"],id:\.self) { Text($0).tag($0) } }.frame(width:140)
+                Toggle(L("竖向"),isOn:$value.portrait)
             }
             if value.mode == "pixels" {
-                TextField("宽",value:$value.pixelWidth,format:.number.grouping(.never)).frame(width:70)
+                TextField(L("宽"),value:$value.pixelWidth,format:.number.grouping(.never)).frame(width:70)
                 Text("×")
-                TextField("高",value:$value.pixelHeight,format:.number.grouping(.never)).frame(width:70)
+                TextField(L("高"),value:$value.pixelHeight,format:.number.grouping(.never)).frame(width:70)
                 Text("px")
-                Button("互换") { (value.pixelWidth,value.pixelHeight) = (value.pixelHeight,value.pixelWidth) }
+                Button(L("互换")) { (value.pixelWidth,value.pixelHeight) = (value.pixelHeight,value.pixelWidth) }
             }
             Spacer(minLength:0)
-            Button("截图",action:confirm).buttonStyle(.borderedProminent).disabled(!valid)
-                .help("最大 \(Int(maxPixelSize.width)) × \(Int(maxPixelSize.height)) px")
-            Text("Esc取消").font(.caption)
+            Button(L("截图"),action:confirm).buttonStyle(.borderedProminent).disabled(!valid)
+                .help(LF("最大 %ld × %ld px", Int(maxPixelSize.width), Int(maxPixelSize.height)))
+            Text(L("Esc取消")).font(.caption)
         }.padding(10).background(.regularMaterial,in:RoundedRectangle(cornerRadius:10))
         .onChange(of:value) { _,newValue in changed(newValue) }
     }
@@ -66,7 +66,7 @@ struct CaptureSelection {
     func targets() async throws -> [CaptureTarget] {
         let content = try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: true)
         guard let windowInfo = CGWindowListCopyWindowInfo([.optionOnScreenOnly,.excludeDesktopElements],kCGNullWindowID) as? [[String:Any]] else {
-            throw NSError(domain:"ScreenshotKing",code:5,userInfo:[NSLocalizedDescriptionKey:"无法读取当前窗口顺序"])
+            throw NSError(domain:"ScreenshotKing",code:5,userInfo:[NSLocalizedDescriptionKey:L("无法读取当前窗口顺序")])
         }
         let order = Dictionary(uniqueKeysWithValues:windowInfo.enumerated().map { index,info in ((info[kCGWindowNumber as String] as! NSNumber).uint32Value,index) })
         let orderedWindows = content.windows.sorted { (order[$0.windowID] ?? Int.max) < (order[$1.windowID] ?? Int.max) }
@@ -187,10 +187,10 @@ private final class SelectionPanel: NSPanel {
             let label = "\(Int(rect.width * target.screen.backingScaleFactor)) × \(Int(rect.height * target.screen.backingScaleFactor)) px"
             drawLabel(label, at: CGPoint(x: max(12, min(rect.minX, bounds.width - 250)), y: min(bounds.height - 40, rect.maxY + 10)))
             if selection != nil {
-                drawLabel("回车 截图    拖动 调整    Esc 取消", at: CGPoint(x: max(12, min(rect.minX, bounds.width - 300)), y: max(12, rect.minY - 36)))
+                drawLabel(L("回车 截图    拖动 调整    Esc 取消"), at: CGPoint(x: max(12, min(rect.minX, bounds.width - 300)), y: max(12, rect.minY - 36)))
             }
         } else {
-            drawLabel("拖动框选 · 点击选窗口 · 空格切换窗口/区域 · Esc 取消", at: CGPoint(x: bounds.midX - 230, y: bounds.height - 80))
+            drawLabel(L("拖动框选 · 点击选窗口 · 空格切换窗口/区域 · Esc 取消"), at: CGPoint(x: bounds.midX - 230, y: bounds.height - 80))
         }
         // Frozen pixel magnifier, using the same captured frame as the result.
         if start != nil {

@@ -84,7 +84,7 @@ struct Shortcut: Codable, Identifiable, Equatable {
             var ref: EventHotKeyRef?
             let status = RegisterEventHotKey(shortcut.keyCode, shortcut.modifiers, EventHotKeyID(signature: 0x534B4E47, id: shortcut.id), GetApplicationEventTarget(), 0, &ref)
             if status == noErr, let ref { refs.append(ref) }
-            else { errors.append("\(shortcut.label) \(shortcut.display) 注册失败（\(status)），请换一组快捷键。") }
+            else { errors.append(LF("%@ %@ 注册失败（%ld），请换一组快捷键。", L(shortcut.label), shortcut.display, Int(status))) }
         }
     }
 }
@@ -96,52 +96,52 @@ struct Shortcut: Codable, Identifiable, Equatable {
     @State private var monitor: Any?
     var body: some View {
         TabView {
-            ExportSettingsView().tabItem { Label("保存",systemImage:"square.and.arrow.down") }
+            ExportSettingsView().tabItem { Label(L("保存"),systemImage:"square.and.arrow.down") }
             Form {
-                Picker("截图后", selection: $settings.outputAction) {
-                    Text("静默保存（稍后编辑）").tag("background"); Text("打开编辑器").tag("editor"); Text("复制到剪贴板").tag("copy"); Text("钉在屏幕").tag("pin"); Text("询问操作").tag("ask")
+                Picker(L("截图后"), selection: $settings.outputAction) {
+                    Text(L("静默保存（稍后编辑）")).tag("background"); Text(L("打开编辑器")).tag("editor"); Text(L("复制到剪贴板")).tag("copy"); Text(L("钉在屏幕")).tag("pin"); Text(L("询问操作")).tag("ask")
                 }
-                Slider(value: $settings.captureDelay, in: 0...10, step: 1) { Text("延迟 \(Int(settings.captureDelay)) 秒") }
-                Toggle("选区显示全屏坐标辅助线", isOn: $settings.guides)
-                Toggle("截图后自动复制", isOn: $settings.autoCopyCaptures)
-                Toggle("选区内直接标注（浮引方式）",isOn:$settings.selectionToolbar)
-                Picker("智能识别",selection:$settings.recognition) {
-                    Text("关闭").tag("off"); Text("识别窗口").tag("window");Text("识别界面元素（需要辅助功能权限）").tag("element")
+                Slider(value: $settings.captureDelay, in: 0...10, step: 1) { Text(LF("延迟 %ld 秒", Int(settings.captureDelay))) }
+                Toggle(L("选区显示全屏坐标辅助线"), isOn: $settings.guides)
+                Toggle(L("截图后自动复制"), isOn: $settings.autoCopyCaptures)
+                Toggle(L("选区内直接标注（浮引方式）"),isOn:$settings.selectionToolbar)
+                Picker(L("智能识别"),selection:$settings.recognition) {
+                    Text(L("关闭功能")).tag("off"); Text(L("识别窗口")).tag("window");Text(L("识别界面元素（需要辅助功能权限）")).tag("element")
                 }
-                Toggle("截图保存到本地图片库", isOn: $settings.saveToLibrary)
-                Picker("钉图位置",selection:$settings.pinPlacement) { Text("截图原位").tag("original"); Text("屏幕中层叠").tag("cascade") }
-                Picker("钉图范围",selection:$settings.pinScope) { Text("当前桌面").tag(0);Text("当前桌面置顶").tag(1);Text("所有桌面置顶").tag(2) }
-                Text("原生菜单栏工具 · 图片和剪贴板保存在这台 Mac。首次截图需要屏幕录制权限。")
+                Toggle(L("截图保存到本地图片库"), isOn: $settings.saveToLibrary)
+                Picker(L("钉图位置"),selection:$settings.pinPlacement) { Text(L("截图原位")).tag("original"); Text(L("屏幕中层叠")).tag("cascade") }
+                Picker(L("钉图范围"),selection:$settings.pinScope) { Text(L("当前桌面")).tag(0);Text(L("当前桌面置顶")).tag(1);Text(L("所有桌面置顶")).tag(2) }
+                Text(L("原生菜单栏工具 · 图片和剪贴板保存在这台 Mac。首次截图需要屏幕录制权限。"))
                     .font(.callout).foregroundStyle(.secondary)
-                Button("打开屏幕录制权限设置") { NSWorkspace.shared.open(URL(string:"x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture")!) }
-            }.padding(24).tabItem { Label("截图", systemImage: "viewfinder") }
+                Button(L("打开屏幕录制权限设置")) { NSWorkspace.shared.open(URL(string:"x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture")!) }
+            }.padding(24).tabItem { Label(L("截图"), systemImage: "viewfinder") }
             Form {
                 ForEach($settings.shortcuts) { $shortcut in
                     HStack {
-                        Toggle(shortcut.label, isOn: $shortcut.enabled)
+                        Toggle(L(shortcut.label), isOn: $shortcut.enabled)
                         Spacer()
-                        Button(recordingID == shortcut.id ? "按下新快捷键…（Esc 取消）" : shortcut.display) { record(shortcut.id) }.monospaced()
+                        Button(recordingID == shortcut.id ? L("按下新快捷键…（Esc 取消）") : shortcut.display) { record(shortcut.id) }.monospaced()
                     }
                 }
-                Button("应用快捷键") { applyShortcuts() }
-                Text("默认使用 ⌃⌥⌘1–4，减少与已安装的截图工具冲突。注册冲突会明确报错。")
+                Button(L("应用快捷键")) { applyShortcuts() }
+                Text(L("默认使用 ⌃⌥⌘1–4，减少与已安装的截图工具冲突。注册冲突会明确报错。"))
                     .font(.callout).foregroundStyle(.secondary)
-            }.padding(24).tabItem { Label("快捷键", systemImage: "keyboard") }
+            }.padding(24).tabItem { Label(L("快捷键"), systemImage: "keyboard") }
             Form {
-                Toggle("录制系统声音", isOn: $settings.systemAudio)
-                Toggle("录制麦克风", isOn: $settings.microphone)
-                Toggle("显示摄像头画面", isOn: $settings.camera)
-                Toggle("静默录屏（通过 ⌃⌥⌘R 或菜单栏停止）",isOn:$settings.silentRecording)
-                Text("音频和摄像头默认关闭。开始录制前选择区域，菜单栏可随时停止。录屏需要 macOS 15 或更新版本。")
+                Toggle(L("录制系统声音"), isOn: $settings.systemAudio)
+                Toggle(L("录制麦克风"), isOn: $settings.microphone)
+                Toggle(L("显示摄像头画面"), isOn: $settings.camera)
+                Toggle(L("静默录屏（通过 ⌃⌥⌘R 或菜单栏停止）"),isOn:$settings.silentRecording)
+                Text(L("音频和摄像头默认关闭。开始录制前选择区域，菜单栏可随时停止。录屏需要 macOS 15 或更新版本。"))
                     .font(.callout).foregroundStyle(.secondary)
-            }.padding(24).tabItem { Label("录屏", systemImage: "record.circle") }
+            }.padding(24).tabItem { Label(L("录屏"), systemImage: "record.circle") }
             Form {
-                Picker("复制截图后自动粘贴",selection:$settings.autoPasteMode) {
-                    Text("关闭").tag("off");Text("所有应用").tag("all");Text("仅指定应用").tag("selected")
+                Picker(L("复制截图后自动粘贴"),selection:$settings.autoPasteMode) {
+                    Text(L("关闭功能")).tag("off");Text(L("所有应用")).tag("all");Text(L("仅指定应用")).tag("selected")
                 }
-                if settings.autoPasteMode == "selected" { TextField("应用 Bundle ID（逗号分隔）",text:$settings.autoPasteApps).textFieldStyle(.roundedBorder) }
-                Text("需要辅助功能权限。仅向截图前使用的应用发送粘贴请求。关闭时只写入剪贴板。\n例如：com.apple.TextEdit, com.apple.Notes").font(.callout).foregroundStyle(.secondary).fixedSize(horizontal:false,vertical:true)
-            }.padding(24).tabItem { Label("粘贴",systemImage:"doc.on.clipboard") }
+                if settings.autoPasteMode == "selected" { TextField(L("应用 Bundle ID（逗号分隔）"),text:$settings.autoPasteApps).textFieldStyle(.roundedBorder) }
+                Text(L("需要辅助功能权限。仅向截图前使用的应用发送粘贴请求。关闭时只写入剪贴板。\n例如：com.apple.TextEdit, com.apple.Notes")).font(.callout).foregroundStyle(.secondary).fixedSize(horizontal:false,vertical:true)
+            }.padding(24).tabItem { Label(L("粘贴"),systemImage:"doc.on.clipboard") }
         }
         .frame(width: 650, height: 500)
         .onDisappear { if let monitor { NSEvent.removeMonitor(monitor); self.monitor = nil } }

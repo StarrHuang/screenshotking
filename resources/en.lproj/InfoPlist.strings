@@ -1,0 +1,4 @@
+"NSScreenCaptureUsageDescription" = "ScreenshotKing uses screen recording permission to capture screenshots, stitch scrolling captures, and record a selected region.";
+"NSAudioCaptureUsageDescription" = "ScreenshotKing records system audio only when you enable system audio recording.";
+"NSMicrophoneUsageDescription" = "ScreenshotKing records microphone audio only when you enable the microphone.";
+"NSCameraUsageDescription" = "ScreenshotKing includes the camera in a recording only when you enable the camera.";

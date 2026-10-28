@@ -20,7 +20,7 @@ import UniformTypeIdentifiers
     @discardableResult static func save(_ image:NSImage,defaults:UserDefaults = .standard,date:Date = Date(),silently:Bool = false) throws -> URL? {
         defaults.register(defaults:["exportAsk":true,"exportFormat":"png","exportTemplate":"ScreenshotKing_$yyyy-MM-dd_HH-mm-ss$","exportReveal":false,"exportCopyPath":false])
         let format = defaults.string(forKey:"exportFormat")!
-        guard ["png","jpg","heic"].contains(format) else { throw error("不支持的输出格式：\(format)") }
+        guard ["png","jpg","heic"].contains(format) else { throw error(LF("不支持的输出格式：%@", format)) }
         let fileName = name(template:defaults.string(forKey:"exportTemplate")!,format:format,date:date)
         let configuredFolder = defaults.string(forKey:"exportDirectory").flatMap { $0.isEmpty ? nil : URL(fileURLWithPath:$0,isDirectory:true) }
         let folder = silently ? (configuredFolder ?? FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Pictures/ScreenshotKing",isDirectory:true)) : configuredFolder
@@ -37,14 +37,14 @@ import UniformTypeIdentifiers
             while FileManager.default.fileExists(atPath:candidate.path) { candidate = base.appendingPathExtension("\(suffix).\(format)");suffix += 1 }
             url = candidate
         }
-        guard let cg = image.cgImage(forProposedRect:nil,context:nil,hints:nil) else { throw error("无法读取输出图像") }
+        guard let cg = image.cgImage(forProposedRect:nil,context:nil,hints:nil) else { throw error(L("无法读取输出图像")) }
         let ext = url.pathExtension.lowercased()
         let uti:CFString
-        switch ext { case "png":uti = UTType.png.identifier as CFString;case "heic":uti = UTType.heic.identifier as CFString;case "jpg","jpeg":uti = UTType.jpeg.identifier as CFString;default:throw error("不支持的文件扩展名：\(ext)") }
+        switch ext { case "png":uti = UTType.png.identifier as CFString;case "heic":uti = UTType.heic.identifier as CFString;case "jpg","jpeg":uti = UTType.jpeg.identifier as CFString;default:throw error(LF("不支持的文件扩展名：%@", ext)) }
         let data = NSMutableData()
-        guard let destination = CGImageDestinationCreateWithData(data,uti,1,nil) else { throw error("无法创建图片编码器") }
+        guard let destination = CGImageDestinationCreateWithData(data,uti,1,nil) else { throw error(L("无法创建图片编码器")) }
         CGImageDestinationAddImage(destination,cg,[kCGImageDestinationLossyCompressionQuality:0.92] as CFDictionary)
-        guard CGImageDestinationFinalize(destination) else { throw error("图片编码失败") }
+        guard CGImageDestinationFinalize(destination) else { throw error(L("图片编码失败")) }
         try (data as Data).write(to:url,options:.atomic)
         if !silently && defaults.bool(forKey:"exportReveal") { NSWorkspace.shared.activateFileViewerSelecting([url]) }
         if !silently && defaults.bool(forKey:"exportCopyPath") { NSPasteboard.general.clearContents();NSPasteboard.general.setString(url.path,forType:.string) }
@@ -62,16 +62,16 @@ struct ExportSettingsView:View {
     @AppStorage("exportCopyPath") private var copyPath = false
     var body:some View {
         Form {
-            TextField("文件命名",text:$template).textFieldStyle(.roundedBorder)
-            Text("$yyyy-MM-dd_HH-mm-ss$ 表示时间；%title% 表示图片标题。自动保存不会覆盖已有文件。")
+            TextField(L("文件命名"),text:$template).textFieldStyle(.roundedBorder)
+            Text(L("$yyyy-MM-dd_HH-mm-ss$ 表示时间；%title% 表示图片标题。自动保存不会覆盖已有文件。"))
                 .font(.callout).foregroundStyle(.secondary).fixedSize(horizontal:false,vertical:true)
-            Picker("默认格式",selection:$format) { Text("PNG（无损）").tag("png");Text("HEIC").tag("heic");Text("JPEG").tag("jpg") }
-            HStack { Text(directory.isEmpty ? FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Pictures/ScreenshotKing",isDirectory:true).path : directory).lineLimit(2).textSelection(.enabled);Spacer();Button("选择文件夹…") { chooseFolder() } }
-            Text("未选择文件夹时，静默截图保存到上方路径。静默保存会跳过保存位置询问、Finder 显示和复制文件路径设置。")
+            Picker(L("默认格式"),selection:$format) { Text(L("PNG（无损）")).tag("png");Text("HEIC").tag("heic");Text("JPEG").tag("jpg") }
+            HStack { Text(directory.isEmpty ? FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Pictures/ScreenshotKing",isDirectory:true).path : directory).lineLimit(2).textSelection(.enabled);Spacer();Button(L("选择文件夹…")) { chooseFolder() } }
+            Text(L("未选择文件夹时，静默截图保存到上方路径。静默保存会跳过保存位置询问、Finder 显示和复制文件路径设置。"))
                 .font(.callout).foregroundStyle(.secondary).fixedSize(horizontal:false,vertical:true)
-            Toggle("每次询问保存位置",isOn:$ask).disabled(directory.isEmpty)
-            Toggle("保存后在 Finder 中选中",isOn:$reveal)
-            Toggle("保存后复制文件路径",isOn:$copyPath)
+            Toggle(L("每次询问保存位置"),isOn:$ask).disabled(directory.isEmpty)
+            Toggle(L("保存后在 Finder 中选中"),isOn:$reveal)
+            Toggle(L("保存后复制文件路径"),isOn:$copyPath)
         }.padding(24)
     }
     private func chooseFolder() {

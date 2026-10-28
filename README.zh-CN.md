@@ -5,19 +5,19 @@
 </p>
 
 <p align="center">
-  <strong>截图快，自动归档；标注全，体积仅约 4.7 MiB。</strong><br>
+  <strong>截图快，自动归档；标注全，体积仅约 4.8 MiB。</strong><br>
   快捷键截图，自动保存、复制并按时间归档。需要讲清重点时，再用备注、编号步骤和完整标注工具继续编辑。
 </p>
 
 <p align="center">
-  <a href="README.md">English</a> · <a href="README.zh-CN.md">简体中文</a> · <a href="https://github.com/StarrHuang/screenshotking/releases/latest">最新版本</a> · <a href="docs/releases/0.3.0-build12.md">build12 发布说明</a>
+  <a href="README.md">English</a> · <a href="README.zh-CN.md">简体中文</a> · <a href="https://github.com/StarrHuang/screenshotking/releases/latest">最新版本</a> · <a href="docs/releases/0.4.0.md">0.4.0 发布说明</a>
 </p>
 
-**macOS 15+ · Apple Silicon · 下载包 2.3 MiB · 安装后约 4.7 MiB**
+**macOS 15+ · Apple Silicon · 下载包 2.3 MiB · 安装后约 4.8 MiB**
 
-> **下载 ScreenshotKing 0.3.0 build12：**[Apple Silicon ZIP](https://github.com/StarrHuang/screenshotking/releases/download/v0.3.0-build12/ScreenshotKing-0.3.0-build12-macOS-arm64.zip) · [SHA-256 校验值](https://github.com/StarrHuang/screenshotking/releases/download/v0.3.0-build12/SHA256SUMS.txt)
+> **下载 ScreenshotKing 0.4.0：**[Apple Silicon ZIP](https://github.com/StarrHuang/screenshotking/releases/download/v0.4.0/ScreenshotKing-0.4.0-macOS-arm64.zip) · [SHA-256 校验值](https://github.com/StarrHuang/screenshotking/releases/download/v0.4.0/SHA256SUMS.txt)
 >
-> 此版本使用 ad hoc 签名，未经 Apple 公证。应用界面目前以简体中文为主。
+> 此版本使用 ad hoc 签名，未经 Apple 公证。应用界面支持英文和简体中文，自动跟随 macOS 首选语言；其他语言回退到英文。更改语言后重新打开应用即可。
 
 ![ScreenshotKing 编辑器窗口与标注工具栏](docs/assets/editor-build12.png)
 
@@ -68,6 +68,8 @@
 | 重复上次选区 | `⌃⌥⌘3` |
 | 长截图 | `⌃⌥⌘4` |
 | 开始 / 停止录屏 | `⌃⌥⌘R` |
+
+界面的菜单、设置、截图控件、标注编辑器、剪贴板和权限说明均支持中英文，自动跟随 macOS 首选语言。已有备注、文件名和剪贴内容保留原文。
 
 可在设置中修改快捷键；截图时按 Esc 取消。
 

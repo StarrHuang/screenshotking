@@ -5,7 +5,7 @@ import CryptoKit
 
 @MainActor final class ScrollingCapture: NSObject, ObservableObject, NSWindowDelegate {
     @Published var frames: [NSImage] = []
-    @Published var status = "滚动页面后，点击「添加当前画面」。相邻画面应保留约一半重叠。"
+    @Published var status = L("滚动页面后，点击「添加当前画面」。相邻画面应保留约一半重叠。")
     @Published var automatic = false
     @Published var busy = false
     @Published var horizontal = false
@@ -30,7 +30,7 @@ import CryptoKit
         targetWindowID = targetWindow?.windowID
         targetApplication = targetWindow?.owningApplication.flatMap { NSRunningApplication(processIdentifier:$0.processID) }
         let window = NSPanel(contentRect: CGRect(x: selection.target.screen.frame.midX - 255, y: selection.target.screen.frame.maxY - 170, width: 510,height: 125), styleMask: [.titled,.closable,.utilityWindow], backing: .buffered, defer: false)
-        window.title = "长截图"; window.level = .floating; window.hidesOnDeactivate = false
+        window.title = L("长截图"); window.level = .floating; window.hidesOnDeactivate = false
         window.delegate = self
         window.isReleasedWhenClosed = false
         let center = CGPoint(x:selection.globalFrame.midX,y:selection.globalFrame.midY)
@@ -50,7 +50,7 @@ import CryptoKit
         busy = true; defer { if sessionID == expectedSession { busy = false } }
         do {
             if targetApplication?.isTerminated == true {
-                throw NSError(domain:"ScreenshotKing",code:6,userInfo:[NSLocalizedDescriptionKey:"目标应用已退出，请重新选择长截图区域。"])
+                throw NSError(domain:"ScreenshotKing",code:6,userInfo:[NSLocalizedDescriptionKey:L("目标应用已退出，请重新选择长截图区域。")])
             }
             if let targetApplication, !targetApplication.isTerminated { targetApplication.activate(options:[]) }
             let content = try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: true)
@@ -58,7 +58,7 @@ import CryptoKit
             let filter:SCContentFilter
             if let targetWindowID {
                 guard let targetWindow = content.windows.first(where:{$0.windowID == targetWindowID}) else {
-                    throw NSError(domain:"ScreenshotKing",code:7,userInfo:[NSLocalizedDescriptionKey:"目标窗口已关闭或不再显示，已停止长截图。"])
+                    throw NSError(domain:"ScreenshotKing",code:7,userInfo:[NSLocalizedDescriptionKey:L("目标窗口已关闭或不再显示，已停止长截图。")])
                 }
                 filter = SCContentFilter(display:selection.target.display,including:[targetWindow])
             } else {
@@ -73,27 +73,27 @@ import CryptoKit
             let cg = try await SCScreenshotManager.captureImage(contentFilter: filter, configuration: config)
             guard sessionID == expectedSession, !cancelled, !Task.isCancelled else { return }
             let image = NSImage(cgImage: cg, size: selection.rect.size)
-            guard let tiff = image.tiffRepresentation else { throw NSError(domain: "ScreenshotKing", code: 1, userInfo: [NSLocalizedDescriptionKey:"无法读取长截图帧"])}
+            guard let tiff = image.tiffRepresentation else { throw NSError(domain: "ScreenshotKing", code: 1, userInfo: [NSLocalizedDescriptionKey:L("无法读取长截图帧")])}
             let hash = Data(SHA256.hash(data: tiff))
             if hash == lastDigest {
-                status = "画面未变化，未重复添加。"; automatic = false
+                status = L("画面未变化，未重复添加。"); automatic = false
             } else {
                 frames.append(image); lastDigest = hash
-                status = "\(targetApplication?.localizedName ?? "屏幕区域") · 已捕获 \(frames.count) 帧 · \(config.width) × \(config.height) px"
+                status = LF("%@ · 已捕获 %ld 帧 · %ld × %ld px", targetApplication?.localizedName ?? L("屏幕区域"), frames.count, config.width, config.height)
             }
-            if frames.count >= 30 { automatic = false; status = "已达到 30 帧上限，请完成当前长截图。" }
+            if frames.count >= 30 { automatic = false; status = L("已达到 30 帧上限，请完成当前长截图。") }
         } catch {
             guard sessionID == expectedSession, !cancelled, !Task.isCancelled else { return }
-            stopAutomatic();status = "捕获失败：\(error.localizedDescription)"
+            stopAutomatic();status = LF("捕获失败：%@", error.localizedDescription)
         }
     }
     func autoScroll() {
         if automatic { stopAutomatic();return }
         guard AXIsProcessTrusted(), let selection else {
-            status = "自动滚动需要辅助功能权限。你仍可手动滚动，并添加当前画面。"; return
+            status = L("自动滚动需要辅助功能权限。你仍可手动滚动，并添加当前画面。"); return
         }
         guard let targetApplication, !targetApplication.isTerminated else {
-            status = "请选择可滚动窗口内的区域后重新开始。";return
+            status = L("请选择可滚动窗口内的区域后重新开始。");return
         }
         automatic = true
         let runID = UUID();automaticRunID = runID
@@ -101,13 +101,13 @@ import CryptoKit
         automaticTask = Task {
             defer { if automaticRunID == runID { automatic = false;automaticTask = nil } }
             while automatic && !cancelled && sessionID == expectedSession && automaticRunID == runID && !Task.isCancelled {
-                guard !targetApplication.isTerminated else { automatic = false;status = "目标应用已退出，已停止自动滚动。";break }
+                guard !targetApplication.isTerminated else { automatic = false;status = L("目标应用已退出，已停止自动滚动。");break }
                 targetApplication.activate(options:[])
                 do { try await Task.sleep(for:.milliseconds(120)) } catch { break }
                 guard automatic, sessionID == expectedSession, automaticRunID == runID, !Task.isCancelled else { break }
                 let point = CGPoint(x:selection.globalFrame.midX,y:NSScreen.screens.first!.frame.height-selection.globalFrame.midY)
                 guard let windowInfo = CGWindowListCopyWindowInfo([.optionOnScreenOnly,.excludeDesktopElements],kCGNullWindowID) as? [[String:Any]] else {
-                    automatic = false;status = "无法检查目标窗口位置，已暂停自动滚动。";break
+                    automatic = false;status = L("无法检查目标窗口位置，已暂停自动滚动。");break
                 }
                 let frontWindow = windowInfo.first(where:{ info in
                           guard let layer = (info[kCGWindowLayer as String] as? NSNumber)?.intValue,
@@ -118,8 +118,8 @@ import CryptoKit
                           return frame.contains(point)
                       })
                 guard (frontWindow?[kCGWindowNumber as String] as? NSNumber)?.uint32Value == targetWindowID else {
-                    let owner = frontWindow?[kCGWindowOwnerName as String] as? String ?? "未知窗口"
-                    automatic = false;status = "选区被\(owner)遮挡，请移开遮挡窗口后继续自动滚动。";break
+                    let owner = frontWindow?[kCGWindowOwnerName as String] as? String ?? L("未知窗口")
+                    automatic = false;status = LF("选区被%@遮挡，请移开遮挡窗口后继续自动滚动。", owner);break
                 }
                 let movement = Int32((horizontal ? selection.rect.width : selection.rect.height) * 0.45)
                 let event = CGEvent(scrollWheelEvent2Source: nil, units: .pixel, wheelCount: 2,
@@ -142,7 +142,7 @@ import CryptoKit
         do {
             let image = try ImageProcessing.stitch(images: frames, direction: horizontal ? .horizontal : .vertical)
             let completion = finished;window?.close();completion?(image)
-        } catch { status = "拼接失败：\(error.localizedDescription)" }
+        } catch { status = LF("拼接失败：%@", error.localizedDescription) }
     }
     func cancel() { stopAutomatic(); cancelled = true; window?.close(); frames = [] }
     func windowWillClose(_ notification:Notification) {
@@ -158,12 +158,12 @@ private struct ScrollingCaptureView: View {
         VStack(alignment: .leading,spacing: 12) {
             Text(model.status).font(.callout).lineLimit(3)
             HStack {
-                Toggle("横向",isOn:$model.horizontal).toggleStyle(.checkbox).disabled(!model.frames.isEmpty && model.automatic)
-                Button("添加当前画面") { Task { await model.addFrame() } }.disabled(model.busy || model.automatic)
-                Button(model.automatic ? "暂停滚动" : "自动滚动") { model.autoScroll() }.disabled(model.busy && !model.automatic)
+                Toggle(L("横向"),isOn:$model.horizontal).toggleStyle(.checkbox).disabled(!model.frames.isEmpty && model.automatic)
+                Button(L("添加当前画面")) { Task { await model.addFrame() } }.disabled(model.busy || model.automatic)
+                Button(model.automatic ? L("暂停滚动") : L("自动滚动")) { model.autoScroll() }.disabled(model.busy && !model.automatic)
                 Spacer()
-                Button("取消") { model.cancel() }
-                Button("完成拼接") { model.finish() }.disabled(model.frames.isEmpty || model.busy).keyboardShortcut(.defaultAction)
+                Button(L("取消")) { model.cancel() }
+                Button(L("完成拼接")) { model.finish() }.disabled(model.frames.isEmpty || model.busy).keyboardShortcut(.defaultAction)
             }
         }.padding(16).frame(width: 570)
     }

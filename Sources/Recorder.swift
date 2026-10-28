@@ -18,10 +18,10 @@ import SwiftUI
     private var stopping = false
 
     func start(selection: CaptureSelection, url: URL, systemAudio: Bool, microphone: Bool, camera: Bool, silent:Bool = false) async throws {
-        guard !isBusy else { throw permissionError("录屏已经启动或正在保存") }
+        guard !isBusy else { throw permissionError(L("录屏已经启动或正在保存")) }
         isBusy = true
         do {
-        if microphone, !(await AVCaptureDevice.requestAccess(for: .audio)) { throw permissionError("麦克风权限未授权") }
+        if microphone, !(await AVCaptureDevice.requestAccess(for: .audio)) { throw permissionError(L("麦克风权限未授权")) }
         if camera { try await showCamera(selection: selection) }
         let content = try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: true)
         let ownApps = content.applications.filter { $0.processID == ProcessInfo.processInfo.processIdentifier }
@@ -45,7 +45,7 @@ import SwiftUI
         let stream = SCStream(filter: filter, configuration: config, delegate: self)
             try stream.addRecordingOutput(output)
             self.stream = stream; self.recording = output; self.outputURL = url
-            stopping = false; status = "正在启动录屏…"
+            stopping = false; status = L("正在启动录屏…")
             try await stream.startCapture()
             if !silent { showControls() }
         } catch {
@@ -55,21 +55,21 @@ import SwiftUI
     }
     func stop() {
         guard !stopping, let stream else { return }
-        stopping = true; status = "正在写入录屏…"; changed?()
+        stopping = true; status = L("正在写入录屏…"); changed?()
         Task {
             do { try await stream.stopCapture() }
             catch { fail(error) }
         }
     }
     nonisolated func recordingOutputDidStartRecording(_ recordingOutput: SCRecordingOutput) {
-        Task { @MainActor in self.isRecording = true; self.status = "录屏中"; self.changed?() }
+        Task { @MainActor in self.isRecording = true; self.status = L("录屏中"); self.changed?() }
     }
     nonisolated func recordingOutput(_ recordingOutput: SCRecordingOutput, didFailWithError error: Error) {
         Task { @MainActor in self.fail(error) }
     }
     nonisolated func recordingOutputDidFinishRecording(_ recordingOutput: SCRecordingOutput) {
         Task { @MainActor in
-            self.isRecording = false; self.status = "录屏已保存"
+            self.isRecording = false; self.status = L("录屏已保存")
             self.cleanup(); self.changed?()
             if let url = self.outputURL { NSWorkspace.shared.activateFileViewerSelecting([url]) }
         }
@@ -78,7 +78,7 @@ import SwiftUI
         Task { @MainActor in self.fail(error) }
     }
     private func fail(_ error: Error) {
-        isRecording = false; status = "录屏失败：\(error.localizedDescription)"; cleanup(); changed?()
+        isRecording = false; status = LF("录屏失败：%@", error.localizedDescription); cleanup(); changed?()
         NSAlert(error: error).runModal()
     }
     private func cleanup() {
@@ -88,16 +88,16 @@ import SwiftUI
     private func permissionError(_ message: String) -> NSError { NSError(domain: "ScreenshotKing", code: 2,userInfo: [NSLocalizedDescriptionKey:message]) }
     private func showControls() {
         let panel = NSPanel(contentRect: CGRect(x: 30,y: 40,width: 260,height: 65),styleMask:[.titled,.utilityWindow],backing:.buffered,defer:false)
-        panel.title = "ScreenshotKing · 录屏"; panel.level = .floating; panel.hidesOnDeactivate = false
+        panel.title = L("ScreenshotKing · 录屏"); panel.level = .floating; panel.hidesOnDeactivate = false
         panel.contentView = NSHostingView(rootView: RecordingControls(recorder: self))
         controls = panel; panel.orderFrontRegardless()
     }
     private func showCamera(selection: CaptureSelection) async throws {
-        guard await AVCaptureDevice.requestAccess(for: .video) else { throw permissionError("摄像头权限未授权") }
-        guard let device = AVCaptureDevice.default(for: .video) else { throw permissionError("没有可用的摄像头") }
+        guard await AVCaptureDevice.requestAccess(for: .video) else { throw permissionError(L("摄像头权限未授权")) }
+        guard let device = AVCaptureDevice.default(for: .video) else { throw permissionError(L("没有可用的摄像头")) }
         let session = AVCaptureSession(); session.sessionPreset = .medium
         let input = try AVCaptureDeviceInput(device: device)
-        guard session.canAddInput(input) else { throw permissionError("无法添加摄像头输入") }
+        guard session.canAddInput(input) else { throw permissionError(L("无法添加摄像头输入")) }
         session.addInput(input)
         let size = min(200,selection.rect.width * 0.3,selection.rect.height * 0.3)
         let rect = CGRect(x: selection.target.screen.frame.minX + selection.rect.minX + 12,y: selection.target.screen.frame.minY + selection.rect.minY + 12,width:size,height:size)
@@ -121,7 +121,7 @@ private struct RecordingControls: View {
             Circle().fill(.red).frame(width:9,height:9)
             Text(recorder.status).font(.callout)
             Spacer()
-            Button("停止并保存") { recorder.stop() }.disabled(!recorder.isRecording)
+            Button(L("停止并保存")) { recorder.stop() }.disabled(!recorder.isRecording)
         }.padding(14).frame(width:300)
     }
 }

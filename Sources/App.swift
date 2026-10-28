@@ -73,7 +73,7 @@ struct ScreenshotKingMain {
     }
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
         if #available(macOS 15.0,*), let recorder = recorderStorage as? ScreenRecorder, recorder.isBusy {
-            let alert = NSAlert(); alert.messageText = "录屏仍在进行"; alert.informativeText = "请先停止录屏并等待文件保存，再退出。"; alert.runModal(); return .terminateCancel
+            let alert = NSAlert(); alert.messageText = L("录屏仍在进行"); alert.informativeText = L("请先停止录屏并等待文件保存，再退出。"); alert.runModal(); return .terminateCancel
         }
         return .terminateNow
     }
@@ -84,14 +84,14 @@ struct ScreenshotKingMain {
         func add(_ title: String,_ selector: Selector,_ key: String = "") {
             let entry = NSMenuItem(title:title,action:selector,keyEquivalent:key); entry.target = self; menu.addItem(entry)
         }
-        add("区域 / 窗口截图",#selector(capture)); add("截取整个屏幕",#selector(fullCapture)); add("重复上次选区",#selector(repeatCapture))
-        add("长截图…",#selector(longCapture)); add("录屏…",#selector(recordScreen))
-        if #available(macOS 15.0,*), let recorder = recorderStorage as? ScreenRecorder, recorder.isRecording { add("⏹ 停止录屏并保存",#selector(stopRecording)) }
+        add(L("区域 / 窗口截图"),#selector(capture)); add(L("截取整个屏幕"),#selector(fullCapture)); add(L("重复上次选区"),#selector(repeatCapture))
+        add(L("长截图…"),#selector(longCapture)); add(L("录屏…"),#selector(recordScreen))
+        if #available(macOS 15.0,*), let recorder = recorderStorage as? ScreenRecorder, recorder.isRecording { add(L("⏹ 停止录屏并保存"),#selector(stopRecording)) }
         menu.addItem(.separator())
-        add("剪贴板历史",#selector(showClipboard)); add(clipboard.isMonitoring ? "暂停剪贴板监听" : "开启剪贴板监听",#selector(toggleClipboard))
-        add("打开图片…",#selector(openFile)); add("编辑最近截图",#selector(editRecentCapture)); add("编辑剪贴板图片",#selector(openClipboardImage)); add("截图库",#selector(showLibrary))
-        menu.addItem(.separator()); add("显示所有钉图",#selector(showPins)); add("隐藏所有钉图",#selector(hidePins)); add("关闭所有钉图",#selector(closePins))
-        menu.addItem(.separator()); add("ScreenshotKing",#selector(showHome)); add("设置…",#selector(showSettings),","); add("退出",#selector(quit),"q")
+        add(L("剪贴板历史"),#selector(showClipboard)); add(clipboard.isMonitoring ? L("暂停剪贴板监听") : L("开启剪贴板监听"),#selector(toggleClipboard))
+        add(L("打开图片…"),#selector(openFile)); add(L("编辑最近截图"),#selector(editRecentCapture)); add(L("编辑剪贴板图片"),#selector(openClipboardImage)); add(L("截图库"),#selector(showLibrary))
+        menu.addItem(.separator()); add(L("显示所有钉图"),#selector(showPins)); add(L("隐藏所有钉图"),#selector(hidePins)); add(L("关闭所有钉图"),#selector(closePins))
+        menu.addItem(.separator()); add("ScreenshotKing",#selector(showHome)); add(L("设置…"),#selector(showSettings),","); add(L("退出"),#selector(quit),"q")
         item.menu = menu
     }
     private func buildMainMenu() {
@@ -100,19 +100,19 @@ struct ScreenshotKingMain {
             let item = NSMenuItem(title:title,action:nil,keyEquivalent:"");let menu = NSMenu(title:title);item.submenu = menu;root.addItem(item);return menu
         }
         let appMenu = submenu("ScreenshotKing")
-        let preferences = NSMenuItem(title:"设置…",action:#selector(showSettings),keyEquivalent:",");preferences.target = self;appMenu.addItem(preferences)
-        appMenu.addItem(.separator());let quit = NSMenuItem(title:"退出 ScreenshotKing",action:#selector(quit),keyEquivalent:"q");quit.target = self;appMenu.addItem(quit)
-        let file = submenu("文件")
-        for (title,selector) in [("区域 / 窗口截图",#selector(capture)),("截取整个屏幕",#selector(fullCapture)),("重复上次选区",#selector(repeatCapture)),("长截图…",#selector(longCapture)),("录屏…",#selector(recordScreen))] {
+        let preferences = NSMenuItem(title:L("设置…"),action:#selector(showSettings),keyEquivalent:",");preferences.target = self;appMenu.addItem(preferences)
+        appMenu.addItem(.separator());let quit = NSMenuItem(title:L("退出 ScreenshotKing"),action:#selector(quit),keyEquivalent:"q");quit.target = self;appMenu.addItem(quit)
+        let file = submenu(L("文件"))
+        for (title,selector) in [(L("区域 / 窗口截图"),#selector(capture)),(L("截取整个屏幕"),#selector(fullCapture)),(L("重复上次选区"),#selector(repeatCapture)),(L("长截图…"),#selector(longCapture)),(L("录屏…"),#selector(recordScreen))] {
             let entry = NSMenuItem(title:title,action:selector,keyEquivalent:"");entry.target = self;file.addItem(entry)
         }
         file.addItem(.separator())
-        let recent = NSMenuItem(title:"编辑最近截图",action:#selector(editRecentCapture),keyEquivalent:"");recent.target = self;file.addItem(recent)
-        for (title,selector,key) in [("打开图片…",#selector(openFile),"o"),("截图库",#selector(showLibrary),"l")] {
+        let recent = NSMenuItem(title:L("编辑最近截图"),action:#selector(editRecentCapture),keyEquivalent:"");recent.target = self;file.addItem(recent)
+        for (title,selector,key) in [(L("打开图片…"),#selector(openFile),"o"),(L("截图库"),#selector(showLibrary),"l")] {
             let entry = NSMenuItem(title:title,action:selector,keyEquivalent:key);entry.target = self;file.addItem(entry)
         }
-        let edit = submenu("编辑")
-        for (title,selector,key) in [("撤销",Selector(("undo:")),"z"),("重做",Selector(("redo:")),"Z"),("剪切",#selector(NSText.cut(_:)),"x"),("复制",#selector(NSText.copy(_:)),"c"),("粘贴",#selector(NSText.paste(_:)),"v"),("全选",#selector(NSText.selectAll(_:)),"a")] {
+        let edit = submenu(L("编辑"))
+        for (title,selector,key) in [(L("撤销"),Selector(("undo:")),"z"),(L("重做"),Selector(("redo:")),"Z"),(L("剪切"),#selector(NSText.cut(_:)),"x"),(L("复制"),#selector(NSText.copy(_:)),"c"),(L("粘贴"),#selector(NSText.paste(_:)),"v"),(L("全选"),#selector(NSText.selectAll(_:)),"a")] {
             edit.addItem(NSMenuItem(title:title,action:selector,keyEquivalent:key))
         }
         NSApp.mainMenu = root
@@ -177,7 +177,7 @@ struct ScreenshotKingMain {
     private func ensureCapturePermission() -> Bool {
         if CGPreflightScreenCaptureAccess() { return true }
         let granted = CGRequestScreenCaptureAccess()
-        if !granted { alert("macOS 尚未授权当前 ScreenshotKing 截图。请在系统设置 → 隐私与安全性 → 录屏与系统录音中允许此应用并重新打开。\n\n如果开关已经开启，请移除旧记录后重新添加当前应用：\n\(Bundle.main.bundlePath)") }
+        if !granted { alert(LF("macOS 尚未授权当前 ScreenshotKing 截图。请在系统设置 → 隐私与安全性 → 录屏与系统录音中允许此应用并重新打开。\n\n如果开关已经开启，请移除旧记录后重新添加当前应用：\n%@", Bundle.main.bundlePath)) }
         return granted
     }
     private func hideOwnWindows() {
@@ -187,7 +187,7 @@ struct ScreenshotKingMain {
     private func restoreOwnWindows() { hiddenWindows.forEach { $0.orderFront(nil) };hiddenWindows.removeAll() }
     private func discardHiddenWindows() { hiddenWindows.removeAll() }
     private func receivedSelection(_ selection:CaptureSelection) {
-        guard let image = selection.image else { restoreOwnWindows();alert("无法读取截图。");return }
+        guard let image = selection.image else { restoreOwnWindows();alert(L("无法读取截图。"));return }
         if settings.outputAction == "background" { receive(image,origin:selection.globalFrame);return }
         if settings.selectionToolbar {
             if settings.autoCopyCaptures { copyImageToPasteboard(image) }
@@ -199,7 +199,7 @@ struct ScreenshotKingMain {
         } else { receive(image,origin:selection.globalFrame) }
     }
     private func receive(_ image: NSImage?,origin:CGRect? = nil,forceEdit:Bool = false) {
-        guard let image else { alert("无法读取所选区域的图像。"); return }
+        guard let image else { alert(L("无法读取所选区域的图像。")); return }
         // The configured copy action already writes the completed capture and may also paste it.
         // For other output actions, auto-copy only updates the pasteboard and never sends keystrokes.
         if settings.autoCopyCaptures && (forceEdit || settings.outputAction != "copy") {
@@ -220,8 +220,8 @@ struct ScreenshotKingMain {
         case "copy": copyImageAndMaybePaste(image)
         case "pin": pin(image,frame:origin)
         case "ask":
-            let alert = NSAlert(); alert.messageText = "截图已完成"; alert.informativeText = "选择下一步操作。"
-            ["标注","复制","钉图","取消"].forEach { alert.addButton(withTitle:$0) }
+            let alert = NSAlert(); alert.messageText = L("截图已完成"); alert.informativeText = L("选择下一步操作。")
+            [L("标注"),L("复制"),L("钉图"),L("取消")].forEach { alert.addButton(withTitle:$0) }
             switch alert.runModal() {
             case .alertFirstButtonReturn: edit(image, documentURL: documentURL,origin:origin)
             case .alertSecondButtonReturn: copyImageAndMaybePaste(image)
@@ -236,12 +236,12 @@ struct ScreenshotKingMain {
         let apps = settings.autoPasteApps.split(separator:",").map { $0.trimmingCharacters(in:.whitespacesAndNewlines) }
         if settings.autoPasteMode == "all" || settings.autoPasteMode == "selected" && apps.contains(clipboard.previousApplicationBundleIdentifier ?? "") {
             let result = clipboard.requestPasteIntoPreviousApplication()
-            if result == .copiedPermissionRequired { alert("截图已复制。自动粘贴需要辅助功能权限。"); }
+            if result == .copiedPermissionRequired { alert(L("截图已复制。自动粘贴需要辅助功能权限。")); }
         }
     }
     @discardableResult private func copyImageToPasteboard(_ image:NSImage) -> Bool {
         NSPasteboard.general.clearContents()
-        guard NSPasteboard.general.writeObjects([image]) else { alert("无法写入剪贴板。");return false }
+        guard NSPasteboard.general.writeObjects([image]) else { alert(L("无法写入剪贴板。"));return false }
         return true
     }
     func edit(_ image: NSImage, documentURL: URL? = nil,origin:CGRect? = nil) {
@@ -269,15 +269,15 @@ struct ScreenshotKingMain {
         if panel.runModal() == .OK { panel.urls.forEach(openImage) }
     }
     private func openImage(_ url: URL) {
-        guard let image = NSImage(contentsOf:url) else { alert("无法打开图片：\(url.lastPathComponent)"); return }
+        guard let image = NSImage(contentsOf:url) else { alert(LF("无法打开图片：%@", url.lastPathComponent)); return }
         edit(image)
     }
     @objc func openClipboardImage() {
-        guard let image = NSImage(pasteboard:.general) else { alert("剪贴板中没有图片。"); return }; edit(image)
+        guard let image = NSImage(pasteboard:.general) else { alert(L("剪贴板中没有图片。")); return }; edit(image)
     }
     @objc func showLibrary() {
         if libraryWindow == nil {
-            libraryWindow = host(title:"截图库",view:LibraryView(library:library) { [weak self] image, url in self?.edit(image, documentURL: url) })
+            libraryWindow = host(title:L("截图库"),view:LibraryView(library:library) { [weak self] image, url in self?.edit(image, documentURL: url) })
         }
         library.reload(); activate(libraryWindow!)
     }
@@ -295,11 +295,11 @@ struct ScreenshotKingMain {
             edit(image,documentURL:entry.url.deletingPathExtension().appendingPathExtension("skedit"))
             return
         }
-        alert("还没有可编辑的截图。")
+        alert(L("还没有可编辑的截图。"))
     }
     @objc func showSettings() {
         if settingsWindow == nil {
-            settingsWindow = host(title:"ScreenshotKing 设置",view:SettingsView(settings:settings) { [weak self] in
+            settingsWindow = host(title:L("ScreenshotKing 设置"),view:SettingsView(settings:settings) { [weak self] in
                 guard let self else { return }; hotkeys.register(settings.shortcuts)
                 if !hotkeys.errors.isEmpty { alert(hotkeys.errors.joined(separator:"\n")) }
             })
@@ -314,7 +314,7 @@ struct ScreenshotKingMain {
     }
     @objc func recordScreen() {
         guard !scrolling.isActive else { return }
-        guard #available(macOS 15.0,*) else { alert("录屏需要 macOS 15 或更新版本。"); return }
+        guard #available(macOS 15.0,*) else { alert(L("录屏需要 macOS 15 或更新版本。")); return }
         if let recorder = recorderStorage as? ScreenRecorder, recorder.isBusy { if recorder.isRecording { stopRecording() }; return }
         let panel = NSSavePanel(); panel.allowedContentTypes = [.mpeg4Movie]; panel.nameFieldStringValue = "ScreenshotKing_\(Int(Date().timeIntervalSince1970)).mp4"
         guard panel.runModal() == .OK, let url = panel.url else { return }
@@ -352,18 +352,18 @@ private struct HomeView: View {
                 Image(nsImage:NSApp.applicationIconImage).resizable().frame(width:44,height:44)
                 VStack(alignment:.leading,spacing:5) {
                     Text("ScreenshotKing").font(.system(size:27,weight:.semibold))
-                    Text("截图、标注、剪贴板。随手就好。").foregroundStyle(.secondary)
+                    Text(L("截图、标注、剪贴板。随手就好。")).foregroundStyle(.secondary).fixedSize(horizontal:false,vertical:true)
                 }
             }
-            Button(action:capture) { HStack { Label("截取区域或窗口",systemImage:"plus.viewfinder"); Spacer(); Text("⌃⌥⌘1").monospaced().foregroundStyle(.secondary) }.padding(8) }.buttonStyle(.borderedProminent).controlSize(.large)
+            Button(action:capture) { HStack { Label(L("截取区域或窗口"),systemImage:"plus.viewfinder"); Spacer(); Text("⌃⌥⌘1").monospaced().foregroundStyle(.secondary) }.padding(8) }.buttonStyle(.borderedProminent).controlSize(.large)
             HStack(spacing:14) {
-                Button(action:openImage) { Label("图片标注",systemImage:"pencil.tip.crop.circle") }
-                Button(action:clipboard) { Label("剪贴板",systemImage:"clipboard") }
-                Button(action:library) { Label("截图库",systemImage:"photo.on.rectangle") }
-                Spacer(); Button(action:settings) { Image(systemName:"gearshape") }.help("设置")
-            }.buttonStyle(.bordered).controlSize(.large)
+                Button(action:openImage) { Label(L("图片标注"),systemImage:"pencil.tip.crop.circle") }
+                Button(action:clipboard) { Label(L("剪贴板"),systemImage:"clipboard") }
+                Button(action:library) { Label(L("截图库"),systemImage:"photo.on.rectangle") }
+                Spacer(); Button(action:settings) { Image(systemName:"gearshape") }.help(L("设置"))
+            }.buttonStyle(.bordered).controlSize(.large).fixedSize(horizontal:true,vertical:false)
             Divider()
-            Text("常驻菜单栏，关闭窗口后继续可用。\n拖动框选，点击选窗口，回车完成，Esc 取消。\n剪贴板监听由你开启，内容保存在本机。").font(.callout).foregroundStyle(.secondary).lineSpacing(6).fixedSize(horizontal:false,vertical:true)
-        }.padding(30).frame(width:440)
+            Text(L("常驻菜单栏，关闭窗口后继续可用。\n拖动框选，点击选窗口，回车完成，Esc 取消。\n剪贴板监听由你开启，内容保存在本机。")).font(.callout).foregroundStyle(.secondary).lineSpacing(6).fixedSize(horizontal:false,vertical:true)
+        }.padding(30).frame(width:600)
     }
 }

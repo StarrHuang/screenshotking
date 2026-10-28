@@ -45,8 +45,8 @@ public struct ClipboardRootView: View {
             detailView
         }
         .frame(minWidth: 760, minHeight: 500)
-        .confirmationDialog("选择要删除的记录。此操作无法撤销。", isPresented: $showCleanupConfirmation) { cleanupActions }
-        .confirmationDialog("导入此剪贴板备份？相同内容会跳过。", isPresented: $showImportConfirmation) { importActions }
+        .confirmationDialog(L("选择要删除的记录。此操作无法撤销。"), isPresented: $showCleanupConfirmation) { cleanupActions }
+        .confirmationDialog(L("导入此剪贴板备份？相同内容会跳过。"), isPresented: $showImportConfirmation) { importActions }
         .sheet(isPresented: $showSettings) { settingsView }
         .onKeyPress(characters: .decimalDigits, phases: .down) { key in
             guard key.modifiers == .option, let number = Int(key.characters), (1...9).contains(number) else { return .ignored }
@@ -69,7 +69,7 @@ public struct ClipboardRootView: View {
     private var searchField: some View {
         HStack {
             Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
-            TextField("搜索剪贴板", text: $query).textFieldStyle(.plain)
+            TextField(L("搜索剪贴板"), text: $query).textFieldStyle(.plain)
             if !query.isEmpty {
                 Button { query = "" } label: { Image(systemName: "xmark.circle.fill") }
                     .buttonStyle(.plain).foregroundStyle(.secondary)
@@ -81,19 +81,19 @@ public struct ClipboardRootView: View {
 
     private var filterControls: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Picker("类型", selection: $selectedKind) {
-                Text("全部类型").tag(Optional<ClipboardContentKind>.none)
+            Picker(L("类型"), selection: $selectedKind) {
+                Text(L("全部类型")).tag(Optional<ClipboardContentKind>.none)
                 ForEach(ClipboardContentKind.allCases) { kind in Text(kind.title).tag(Optional(kind)) }
             }
             .pickerStyle(.menu)
-            Toggle("只看收藏", isOn: $favoritesOnly).toggleStyle(.checkbox)
+            Toggle(L("只看收藏"), isOn: $favoritesOnly).toggleStyle(.checkbox)
             HStack {
-                Menu(selectedCategory ?? "全部分类") {
-                    Button("全部分类") { selectedCategory = nil }
+                Menu(selectedCategory ?? L("全部分类")) {
+                    Button(L("全部分类")) { selectedCategory = nil }
                     ForEach(store.categories, id: \.self) { category in Button(category) { selectedCategory = category } }
                 }
-                Menu(selectedTag ?? "全部标签") {
-                    Button("全部标签") { selectedTag = nil }
+                Menu(selectedTag ?? L("全部标签")) {
+                    Button(L("全部标签")) { selectedTag = nil }
                     ForEach(store.tags, id: \.self) { tag in Button(tag) { selectedTag = tag } }
                 }
             }
@@ -125,19 +125,19 @@ public struct ClipboardRootView: View {
             }
             .tag(item.id)
             .contextMenu {
-                Button("复制原格式") { runAction { _ = try store.restore(item: item) } }
-                Button("复制为纯文本") { runAction { _ = try store.restore(item: item, plainText: true) } }
-                Button(item.isFavorite ? "取消收藏" : "添加收藏") { store.toggleFavorite(id: item.id) }
-                if let image = store.image(for: item) { Button("钉住图片") { onPin(image) } }
+                Button(L("复制原格式")) { runAction { _ = try store.restore(item: item) } }
+                Button(L("复制为纯文本")) { runAction { _ = try store.restore(item: item, plainText: true) } }
+                Button(item.isFavorite ? L("取消收藏") : L("添加收藏")) { store.toggleFavorite(id: item.id) }
+                if let image = store.image(for: item) { Button(L("钉住图片")) { onPin(image) } }
                 Divider()
-                Button("删除记录", role: .destructive) { store.remove(id: item.id, confirmation: true) }
+                Button(L("删除记录"), role: .destructive) { store.remove(id: item.id, confirmation: true) }
             }
     }
 
     @ViewBuilder
     private var selectionAction: some View {
         if orderedSelection.count > 1 {
-            Button("批量复制所选文本（以换行分隔）") { runAction { _ = try store.pasteBatch(orderedSelection) } }
+            Button(L("批量复制所选文本（以换行分隔）")) { runAction { _ = try store.pasteBatch(orderedSelection) } }
                 .disabled(orderedSelection.contains(where: { $0.kind != .text && $0.kind != .richText }))
         }
     }
@@ -146,9 +146,9 @@ public struct ClipboardRootView: View {
         VStack(alignment: .leading, spacing: 5) {
             HStack {
                 Circle().fill(store.isMonitoring ? .green : .gray).frame(width: 7, height: 7)
-                Text(store.isMonitoring ? "正在监听" : "已暂停").font(.caption).foregroundStyle(.secondary)
+                Text(store.isMonitoring ? L("正在监听") : L("已暂停")).font(.caption).foregroundStyle(.secondary)
                 Spacer()
-                Button(store.isMonitoring ? "暂停" : "继续") {
+                Button(store.isMonitoring ? L("暂停") : L("继续")) {
                     store.isMonitoring ? store.stopMonitoring() : store.startMonitoring()
                 }
                 .controlSize(.small)
@@ -164,56 +164,56 @@ public struct ClipboardRootView: View {
     @ToolbarContentBuilder
     private var toolbarContent: some ToolbarContent {
         ToolbarItem {
-            Button { showCleanupConfirmation = true } label: { Image(systemName: "trash") }.help("清理记录")
+            Button { showCleanupConfirmation = true } label: { Image(systemName: "trash") }.help(L("清理记录"))
         }
         ToolbarItem {
-            Button { showSettings = true } label: { Image(systemName: "gearshape") }.help("剪贴板设置")
+            Button { showSettings = true } label: { Image(systemName: "gearshape") }.help(L("剪贴板设置"))
         }
         ToolbarItem {
             Menu {
-                Button("导出本地备份…", systemImage: "square.and.arrow.up") { exportBackup() }
-                Button("导入本地备份…", systemImage: "square.and.arrow.down") { chooseBackupToImport() }
-            } label: { Image(systemName: "ellipsis.circle") }.help("剪贴板备份")
+                Button(L("导出本地备份…"), systemImage: "square.and.arrow.up") { exportBackup() }
+                Button(L("导入本地备份…"), systemImage: "square.and.arrow.down") { chooseBackupToImport() }
+            } label: { Image(systemName: "ellipsis.circle") }.help(L("剪贴板备份"))
         }
     }
 
     @ViewBuilder
     private var cleanupActions: some View {
-        Button("删除非收藏文本") { store.clearMatching(kinds: [.text, .richText], favorite: false, confirmation: true) }
-        Button("删除收藏文本") { store.clearMatching(kinds: [.text, .richText], favorite: true, confirmation: true) }
-        Button("删除非收藏图片") { store.clearMatching(kinds: [.image], favorite: false, confirmation: true) }
-        Button("删除收藏图片") { store.clearMatching(kinds: [.image], favorite: true, confirmation: true) }
-        Button("删除全部非收藏记录") { store.clearMatching(favorite: false, confirmation: true) }
-        Button("删除全部收藏记录", role: .destructive) { store.clearMatching(favorite: true, confirmation: true) }
-        Button("取消", role: .cancel) { }
+        Button(L("删除非收藏文本")) { store.clearMatching(kinds: [.text, .richText], favorite: false, confirmation: true) }
+        Button(L("删除收藏文本")) { store.clearMatching(kinds: [.text, .richText], favorite: true, confirmation: true) }
+        Button(L("删除非收藏图片")) { store.clearMatching(kinds: [.image], favorite: false, confirmation: true) }
+        Button(L("删除收藏图片")) { store.clearMatching(kinds: [.image], favorite: true, confirmation: true) }
+        Button(L("删除全部非收藏记录")) { store.clearMatching(favorite: false, confirmation: true) }
+        Button(L("删除全部收藏记录"), role: .destructive) { store.clearMatching(favorite: true, confirmation: true) }
+        Button(L("取消"), role: .cancel) { }
     }
 
     @ViewBuilder
     private var importActions: some View {
-        Button("导入备份", role: .destructive) {
+        Button(L("导入备份"), role: .destructive) {
             guard let importURL else { return }
             runAction { try store.importBackup(from: importURL, confirmation: true) }
             self.importURL = nil
         }
-        Button("取消", role: .cancel) { importURL = nil }
+        Button(L("取消"), role: .cancel) { importURL = nil }
     }
 
     private var settingsView: some View {
         Form {
-            Picker("单击 / 双击", selection: $store.selectionBehavior) {
-                Text("单击复制；双击发送粘贴请求").tag(ClipboardSelectionBehavior.clickCopiesDoubleClickPastes)
-                Text("单击发送粘贴请求").tag(ClipboardSelectionBehavior.clickPastes)
-                Text("单击选中；双击发送粘贴请求").tag(ClipboardSelectionBehavior.doubleClickPastes)
+            Picker(L("单击 / 双击"), selection: $store.selectionBehavior) {
+                Text(L("单击复制；双击发送粘贴请求")).tag(ClipboardSelectionBehavior.clickCopiesDoubleClickPastes)
+                Text(L("单击发送粘贴请求")).tag(ClipboardSelectionBehavior.clickPastes)
+                Text(L("单击选中；双击发送粘贴请求")).tag(ClipboardSelectionBehavior.doubleClickPastes)
             }
-            Picker("Option + 数字键 1–9", selection: $store.numericKeyBehavior) {
-                Text("关闭").tag(ClipboardNumericKeyBehavior.disabled)
-                Text("复制对应记录").tag(ClipboardNumericKeyBehavior.copy)
-                Text("发送粘贴请求").tag(ClipboardNumericKeyBehavior.paste)
+            Picker(L("Option + 数字键 1–9"), selection: $store.numericKeyBehavior) {
+                Text(L("关闭功能")).tag(ClipboardNumericKeyBehavior.disabled)
+                Text(L("复制对应记录")).tag(ClipboardNumericKeyBehavior.copy)
+                Text(L("发送粘贴请求")).tag(ClipboardNumericKeyBehavior.paste)
             }
-            Toggle("复制使用后移到最前", isOn: $store.moveToFrontAfterCopy)
-            Stepper("保留 \(store.retentionDays) 天", value: $store.retentionDays, in: 1...365)
-            Stepper("最多保存 \(store.itemCountLimit) 条", value: $store.itemCountLimit, in: 50...5000, step: 50)
-            HStack { Spacer(); Button("完成") { showSettings = false }.keyboardShortcut(.defaultAction) }
+            Toggle(L("复制使用后移到最前"), isOn: $store.moveToFrontAfterCopy)
+            Stepper(LF("保留 %ld 天", store.retentionDays), value: $store.retentionDays, in: 1...365)
+            Stepper(LF("最多保存 %ld 条", store.itemCountLimit), value: $store.itemCountLimit, in: 50...5000, step: 50)
+            HStack { Spacer(); Button(L("完成")) { showSettings = false }.keyboardShortcut(.defaultAction) }
         }
         .padding(20)
         .frame(width: 420)
@@ -236,7 +236,7 @@ public struct ClipboardRootView: View {
                         Image(systemName: item.isFavorite ? "star.fill" : "star")
                     }
                     .buttonStyle(.borderless)
-                    .help(item.isFavorite ? "取消收藏" : "收藏")
+                    .help(item.isFavorite ? L("取消收藏") : L("收藏"))
                 }
 
                 if let image = store.image(for: item) {
@@ -245,7 +245,7 @@ public struct ClipboardRootView: View {
                         .background(.black.opacity(0.04), in: RoundedRectangle(cornerRadius: 8))
                 } else {
                     ScrollView {
-                        Text(item.preview.isEmpty ? "没有可预览内容" : item.preview)
+                        Text(item.preview.isEmpty ? L("没有可预览内容") : item.preview)
                             .font(.system(.body, design: .monospaced))
                             .textSelection(.enabled)
                             .frame(maxWidth: .infinity, alignment: .leading)
@@ -256,12 +256,12 @@ public struct ClipboardRootView: View {
                 }
 
                 HStack {
-                    Button("复制") { runAction { _ = try store.restore(item: item) } }
-                    Button("纯文本") { runAction { _ = try store.restore(item: item, plainText: true) } }
-                    Button("粘贴到 \(store.previousApplicationName ?? "上一个应用")") { runAction { _ = try store.paste(item: item) } }
+                    Button(L("复制")) { runAction { _ = try store.restore(item: item) } }
+                    Button(L("纯文本")) { runAction { _ = try store.restore(item: item, plainText: true) } }
+                    Button(LF("粘贴到 %@", store.previousApplicationName ?? L("上一个应用"))) { runAction { _ = try store.paste(item: item) } }
                     if let image = store.image(for: item) {
-                        Button("钉图") { onPin(image) }
-                        Button("保存图片…") { saveImage(item) }
+                        Button(L("钉图")) { onPin(image) }
+                        Button(L("保存图片…")) { saveImage(item) }
                     }
                     Spacer()
                     Text(ByteCountFormatter.string(fromByteCount: Int64(item.byteCount), countStyle: .file))
@@ -270,23 +270,23 @@ public struct ClipboardRootView: View {
 
                 VStack(alignment: .leading, spacing: 8) {
                     HStack {
-                        Text("分类").font(.caption).foregroundStyle(.secondary)
-                        Menu(item.category ?? "选择分类") {
-                            Button("无分类") { store.setCategory(nil, id: item.id) }
+                        Text(L("分类")).font(.caption).foregroundStyle(.secondary)
+                        Menu(item.category ?? L("选择分类")) {
+                            Button(L("无分类")) { store.setCategory(nil, id: item.id) }
                             ForEach(store.categories, id: \.self) { category in
                                 Button(category) { store.setCategory(category, id: item.id) }
                             }
                             if !store.categories.isEmpty {
-                                Menu("删除分类") {
+                                Menu(L("删除分类")) {
                                     ForEach(store.categories, id: \.self) { category in
                                         Button(category, role: .destructive) { store.deleteCategory(category) }
                                     }
                                 }
                             }
                         }
-                        TextField("新建分类", text: $categoryDraft)
+                        TextField(L("新建分类"), text: $categoryDraft)
                             .textFieldStyle(.roundedBorder).frame(maxWidth: 180)
-                        Button("添加") {
+                        Button(L("添加")) {
                             if let category = store.createCategory(categoryDraft) {
                                 store.setCategory(category, id: item.id)
                                 categoryDraft = ""
@@ -295,14 +295,14 @@ public struct ClipboardRootView: View {
                         .disabled(categoryDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                     }
                     HStack {
-                        Text("标签").font(.caption).foregroundStyle(.secondary)
+                        Text(L("标签")).font(.caption).foregroundStyle(.secondary)
                         Text(item.tags.joined(separator: ", ")).lineLimit(1).foregroundStyle(.secondary)
-                        TextField("添加标签", text: $tagDraft).textFieldStyle(.roundedBorder).frame(maxWidth: 180)
-                        Button("添加") { store.addTag(tagDraft, to: item.id); tagDraft = "" }
+                        TextField(L("添加标签"), text: $tagDraft).textFieldStyle(.roundedBorder).frame(maxWidth: 180)
+                        Button(L("添加")) { store.addTag(tagDraft, to: item.id); tagDraft = "" }
                             .disabled(tagDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                         ForEach(item.tags, id: \.self) { tag in
                             Button { store.removeTag(tag, from: item.id) } label: { Image(systemName: "xmark.circle") }
-                                .buttonStyle(.plain).help("移除标签 \(tag)")
+                                .buttonStyle(.plain).help(LF("移除标签 %@", tag))
                         }
                     }
                 }
@@ -323,13 +323,13 @@ public struct ClipboardRootView: View {
             }
             .padding(20)
         } else {
-            ContentUnavailableView("暂无剪贴记录", systemImage: "doc.on.clipboard", description: Text("开启监听后复制内容即可记录。"))
+            ContentUnavailableView(L("暂无剪贴记录"), systemImage: "doc.on.clipboard", description: Text(L("开启监听后复制内容即可记录。")))
         }
     }
 
     private func saveImage(_ item: ClipboardEntry) {
         let panel = NSSavePanel()
-        panel.nameFieldStringValue = "剪贴图片.png"
+        panel.nameFieldStringValue = L("剪贴图片.png")
         panel.allowedContentTypes = [.png, .jpeg, .tiff]
         guard panel.runModal() == .OK, let url = panel.url else { return }
         do {
@@ -342,7 +342,7 @@ public struct ClipboardRootView: View {
 
     private func exportBackup() {
         let panel = NSSavePanel()
-        panel.nameFieldStringValue = "剪贴板备份.json"
+        panel.nameFieldStringValue = L("剪贴板备份.json")
         panel.allowedContentTypes = [.json]
         guard panel.runModal() == .OK, let url = panel.url else { return }
         runAction { try store.exportBackup(to: url) }
@@ -375,7 +375,7 @@ private struct ClipboardRow: View {
         HStack(alignment: .top, spacing: 9) {
             Image(systemName: icon).frame(width: 18).foregroundStyle(.secondary)
             VStack(alignment: .leading, spacing: 4) {
-                Text(item.preview.isEmpty ? item.kind.title : item.preview.replacingOccurrences(of: "\n", with: " "))
+                Text(item.preview.isEmpty ? item.kind.title : localizedPreview.replacingOccurrences(of: "\n", with: " "))
                     .lineLimit(2).font(.system(size: 13))
                 HStack(spacing: 6) {
                     Text(item.createdAt.formatted(date: .omitted, time: .shortened))
@@ -400,6 +400,15 @@ private struct ClipboardRow: View {
         case .other: "clipboard"
         }
     }
+
+    private var localizedPreview: String {
+        guard item.kind == .image else { return item.preview }
+        if item.preview == "图片" { return L("图片") }
+        if item.preview == "\(item.pasteboardItems.count) 张图片" {
+            return LF("%ld 张图片", item.pasteboardItems.count)
+        }
+        return item.preview
+    }
 }
 
 @MainActor
@@ -407,7 +416,7 @@ public final class ClipboardWindow: NSWindowController {
     public convenience init(store: ClipboardStore, onPin: @escaping (NSImage) -> Void = { _ in }) {
         let root = ClipboardRootView(store: store, onPin: onPin)
         let window = NSWindow(contentViewController: NSHostingController(rootView: root))
-        window.title = "ScreenshotKing 剪贴板"
+        window.title = L("ScreenshotKing 剪贴板")
         window.setContentSize(NSSize(width: 900, height: 620))
         window.minSize = NSSize(width: 760, height: 500)
         window.center()

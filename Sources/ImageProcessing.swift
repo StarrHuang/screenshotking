@@ -14,9 +14,9 @@ public enum ImageProcessingError: Error, LocalizedError {
 
     public var errorDescription: String? {
         switch self {
-        case .emptyInput: return "At least one image is required."
-        case .unreadableImage: return "An input image could not be decoded."
-        case .incompatibleDimensions: return "Images must have the same width for vertical stitching or the same height for horizontal stitching."
+        case .emptyInput: return L("至少需要一张图片。")
+        case .unreadableImage: return L("无法解码输入图片。")
+        case .incompatibleDimensions: return L("纵向拼接时图片宽度必须相同，横向拼接时图片高度必须相同。")
         }
     }
 }

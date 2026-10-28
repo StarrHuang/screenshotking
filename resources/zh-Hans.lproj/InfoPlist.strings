@@ -1,0 +1,4 @@
+"NSScreenCaptureUsageDescription" = "ScreenshotKing 使用屏幕录制权限来截图、拼接长截图和录制指定区域。";
+"NSAudioCaptureUsageDescription" = "仅当你开启系统声音录制时，ScreenshotKing 才会录制系统声音。";
+"NSMicrophoneUsageDescription" = "仅当你开启麦克风录制时，ScreenshotKing 才会把麦克风声音加入录屏。";
+"NSCameraUsageDescription" = "仅当你开启摄像头时，ScreenshotKing 才会把摄像头画面加入录屏。";

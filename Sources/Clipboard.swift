@@ -14,11 +14,11 @@ public enum ClipboardContentKind: String, Codable, CaseIterable, Identifiable, S
 
     public var title: String {
         switch self {
-        case .text: "文本"
-        case .richText: "富文本"
-        case .image: "图片"
-        case .file: "文件"
-        case .other: "其他"
+        case .text: L("文本")
+        case .richText: L("富文本")
+        case .image: L("图片")
+        case .file: L("文件")
+        case .other: L("其他")
         }
     }
 }
@@ -87,12 +87,12 @@ public enum ClipboardStoreError: LocalizedError {
 
     public var errorDescription: String? {
         switch self {
-        case .noRestorablePayload: "剪贴内容没有可恢复的数据。"
-        case .noPlainText: "这条剪贴记录不包含纯文本。"
-        case .mixedBatchNotSupported: "批量复制仅支持文本记录，不能混合图片或文件。"
-        case .noImage: "这条剪贴记录不包含图片。"
-        case .invalidBackup: "剪贴板备份文件无效。"
-        case .pasteboardWriteFailed: "写入系统剪贴板失败。"
+        case .noRestorablePayload: L("剪贴内容没有可恢复的数据。")
+        case .noPlainText: L("这条剪贴记录不包含纯文本。")
+        case .mixedBatchNotSupported: L("批量复制仅支持文本记录，不能混合图片或文件。")
+        case .noImage: L("这条剪贴记录不包含图片。")
+        case .invalidBackup: L("剪贴板备份文件无效。")
+        case .pasteboardWriteFailed: L("写入系统剪贴板失败。")
         }
     }
 }
@@ -301,7 +301,7 @@ public final class ClipboardStore: ObservableObject {
         pasteboard.clearContents()
         guard pasteboard.writeObjects(replacementItems) else { throw ClipboardStoreError.pasteboardWriteFailed }
         markUsed(item.id)
-        statusMessage = "已复制到系统剪贴板。"
+        statusMessage = L("已复制到系统剪贴板。")
         return .copied
     }
 
@@ -316,14 +316,14 @@ public final class ClipboardStore: ObservableObject {
 
     @discardableResult public func requestPasteIntoPreviousApplication() -> ClipboardRestoreResult {
         guard AXIsProcessTrusted() else {
-            statusMessage = "已复制到剪贴板。开启辅助功能权限后才能向上一个应用发送粘贴请求。"
+            statusMessage = L("已复制到剪贴板。开启辅助功能权限后才能向上一个应用发送粘贴请求。")
             return .copiedPermissionRequired
         }
         guard let app = previousApplication, app.processIdentifier != ProcessInfo.processInfo.processIdentifier,
               !app.isTerminated,
               NSWorkspace.shared.runningApplications.contains(where: { $0.processIdentifier == app.processIdentifier && !$0.isTerminated }) else {
             previousApplication = nil
-            statusMessage = "已复制到剪贴板。没有可用的上一个应用，未发送粘贴请求。"
+            statusMessage = L("已复制到剪贴板。没有可用的上一个应用，未发送粘贴请求。")
             return .copiedNoPreviousApplication
         }
         app.activate(options: [.activateAllWindows])
@@ -332,12 +332,12 @@ public final class ClipboardStore: ObservableObject {
         let up = CGEvent(keyboardEventSource: nil, virtualKey: 9, keyDown: false)
         up?.flags = .maskCommand
         guard let down, let up else {
-            statusMessage = "已复制到剪贴板，但无法构造粘贴按键事件。"
+            statusMessage = L("已复制到剪贴板，但无法构造粘贴按键事件。")
             return .copied
         }
         down.postToPid(app.processIdentifier)
         up.postToPid(app.processIdentifier)
-        statusMessage = "已向上一个应用发送粘贴请求，目标是否接收尚未确认。"
+        statusMessage = L("已向上一个应用发送粘贴请求，目标是否接收尚未确认。")
         return .pasteRequestSent
     }
 
@@ -352,7 +352,7 @@ public final class ClipboardStore: ObservableObject {
         pasteboard.clearContents()
         guard pasteboard.writeObjects([boardItem]) else { throw ClipboardStoreError.pasteboardWriteFailed }
         for entry in entries { markUsed(entry.id) }
-        statusMessage = "已复制 \(entries.count) 条文本到剪贴板，内容以换行符分隔。"
+        statusMessage = LF("已复制 %ld 条文本到剪贴板，内容以换行符分隔。", entries.count)
         return .copied
     }
 
@@ -473,7 +473,7 @@ public final class ClipboardStore: ObservableObject {
                 if let payload {
                     groupBytes += payload.data.count
                     if groupBytes > Self.maximumBytesPerPasteboardItem {
-                        statusMessage = "剪贴内容中的单项超过 8 MB 上限，未保存。"
+                        statusMessage = L("剪贴内容中的单项超过 8 MB 上限，未保存。")
                         return nil
                     }
                     group.append(payload)
@@ -482,7 +482,7 @@ public final class ClipboardStore: ObservableObject {
             guard !group.isEmpty else { continue }
             totalBytes += groupBytes
             if totalBytes > Self.maximumBytesPerCapture {
-                statusMessage = "本次剪贴内容超过 32 MB 总上限，未保存。"
+                statusMessage = L("本次剪贴内容超过 32 MB 总上限，未保存。")
                 return nil
             }
             payloadGroups.append(group)
@@ -564,7 +564,7 @@ public final class ClipboardStore: ObservableObject {
             items = try JSONDecoder.clipboard.decode([ClipboardEntry].self, from: data)
             enforceRetentionAndLimit(now: Date())
         } catch {
-            errorMessage = "读取剪贴板历史失败：\(error.localizedDescription)"
+            errorMessage = LF("读取剪贴板历史失败：%@", error.localizedDescription)
         }
     }
 
@@ -580,7 +580,7 @@ public final class ClipboardStore: ObservableObject {
             retentionDays = max(0, preferences.retentionDays)
             itemCountLimit = max(0, preferences.itemCountLimit)
         } catch {
-            errorMessage = "读取剪贴板设置失败：\(error.localizedDescription)"
+            errorMessage = LF("读取剪贴板设置失败：%@", error.localizedDescription)
         }
     }
 
@@ -591,7 +591,7 @@ public final class ClipboardStore: ObservableObject {
             let data = try JSONEncoder.clipboard.encode(preferences)
             try writePrivateFile(data, to: preferencesURL)
         } catch {
-            errorMessage = "保存剪贴板设置失败：\(error.localizedDescription)"
+            errorMessage = LF("保存剪贴板设置失败：%@", error.localizedDescription)
         }
     }
 
@@ -602,7 +602,7 @@ public final class ClipboardStore: ObservableObject {
             try writePrivateFile(data, to: recordsURL)
             errorMessage = nil
         } catch {
-            errorMessage = "保存剪贴板历史失败：\(error.localizedDescription)"
+            errorMessage = LF("保存剪贴板历史失败：%@", error.localizedDescription)
         }
     }
 

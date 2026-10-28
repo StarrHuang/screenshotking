@@ -22,7 +22,7 @@ struct LibraryEntry: Identifiable {
     }
     @discardableResult func add(_ image: NSImage) throws -> URL {
         guard let tiff = image.tiffRepresentation, let rep = NSBitmapImageRep(data: tiff), let png = rep.representation(using: .png, properties: [:]) else {
-            throw NSError(domain: "ScreenshotKing", code: 1, userInfo: [NSLocalizedDescriptionKey:"无法编码截图"])
+            throw NSError(domain: "ScreenshotKing", code: 1, userInfo: [NSLocalizedDescriptionKey:L("无法编码截图")])
         }
         let formatter = DateFormatter(); formatter.dateFormat = "yyyy-MM-dd_HH-mm-ss-SSS"
         let file = directory.appendingPathComponent("ScreenshotKing_\(formatter.string(from: Date()))_\(UUID().uuidString.prefix(6)).png")
@@ -37,7 +37,7 @@ struct LibraryEntry: Identifiable {
     @State private var query = ""
     var body: some View {
         VStack {
-            HStack { Text("截图库").font(.title2.bold()); Spacer(); Button("在 Finder 中打开") { NSWorkspace.shared.open(library.directory) } }.padding()
+            HStack { Text(L("截图库")).font(.title2.bold()); Spacer(); Button(L("在 Finder 中打开")) { NSWorkspace.shared.open(library.directory) } }.padding()
             if let error = library.error { Text(error).foregroundStyle(.red).textSelection(.enabled) }
             ScrollView {
                 LazyVGrid(columns: [GridItem(.adaptive(minimum: 190))], spacing: 18) {
@@ -48,12 +48,12 @@ struct LibraryEntry: Identifiable {
                                     Image(nsImage: image).resizable().scaledToFit().frame(height: 135)
                                     Text(entry.id).font(.caption).lineLimit(2)
                                 }.padding(10).frame(maxWidth: .infinity).background(Color(nsColor: .controlBackgroundColor)).clipShape(RoundedRectangle(cornerRadius: 8))
-                            }.buttonStyle(.plain).help("打开编辑")
+                            }.buttonStyle(.plain).help(L("打开编辑"))
                         }
                     }
                 }.padding()
-                if library.entries.isEmpty { Text("截图后，图片会出现在这里。").foregroundStyle(.secondary).padding(50) }
+                if library.entries.isEmpty { Text(L("截图后，图片会出现在这里。")).foregroundStyle(.secondary).padding(50) }
             }
-        }.searchable(text: $query, prompt: "按文件名搜索").frame(minWidth: 650,minHeight: 420).onAppear { library.reload() }
+        }.searchable(text: $query, prompt: L("按文件名搜索")).frame(minWidth: 650,minHeight: 420).onAppear { library.reload() }
     }
 }

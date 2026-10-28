@@ -5,23 +5,23 @@
 </p>
 
 <p align="center">
-  <strong>Quick screenshots. Rich annotations. Just 4.7 MiB.</strong><br>
+  <strong>Quick screenshots. Rich annotations. Just 4.8 MiB.</strong><br>
   Capture with a shortcut. Automatically saved, copied, and organized by time. Add notes and numbered steps when you need to explain more.
 </p>
 
 <p align="center">
-  <a href="README.md">English</a> · <a href="README.zh-CN.md">Simplified Chinese</a> · <a href="https://github.com/StarrHuang/screenshotking/releases/latest">Latest release</a> · <a href="docs/releases/0.3.0-build12.md">Build 12 notes</a>
+  <a href="README.md">English</a> · <a href="README.zh-CN.md">Simplified Chinese</a> · <a href="https://github.com/StarrHuang/screenshotking/releases/latest">Latest release</a> · <a href="docs/releases/0.4.0.md">0.4.0 release notes</a>
 </p>
 
-**macOS 15+ · Apple Silicon · 2.3 MiB download · 4.7 MiB installed app**
+**macOS 15+ · Apple Silicon · 2.3 MiB download · 4.8 MiB installed app**
 
-> **Download ScreenshotKing 0.3.0 build12:** [Apple Silicon ZIP](https://github.com/StarrHuang/screenshotking/releases/download/v0.3.0-build12/ScreenshotKing-0.3.0-build12-macOS-arm64.zip) · [SHA-256 checksums](https://github.com/StarrHuang/screenshotking/releases/download/v0.3.0-build12/SHA256SUMS.txt)
+> **Download ScreenshotKing 0.4.0:** [Apple Silicon ZIP](https://github.com/StarrHuang/screenshotking/releases/download/v0.4.0/ScreenshotKing-0.4.0-macOS-arm64.zip) · [SHA-256 checksums](https://github.com/StarrHuang/screenshotking/releases/download/v0.4.0/SHA256SUMS.txt)
 >
-> This ad hoc signed development build is not notarized by Apple. The app interface is currently primarily in Simplified Chinese.
+> This ad hoc signed development build is not notarized by Apple. The interface supports English and Simplified Chinese, selected automatically from your macOS preferred languages. Other languages fall back to English; relaunch the app after changing your preferred language.
 
-![ScreenshotKing annotation output on a synthetic example, with explanatory numbered steps and callouts](docs/assets/capture-annotation-en.png)
+![ScreenshotKing 0.4.0 native English editor with notes, numbered steps and annotation tools on a synthetic example](docs/assets/editor-en-0.4.0.png)
 
-*English annotation output exported with ScreenshotKing's own renderer on a synthetic example.*
+*The actual English app interface, showing a synthetic example exported with ScreenshotKing’s annotation renderer.*
 
 ## Capture quickly. Find it later.
 
@@ -38,7 +38,7 @@ Style, move, or copy annotation objects; undo and redo changes; export PNG, JPEG
 <details>
 <summary>More annotation styles</summary>
 
-![Annotation styles rendered by ScreenshotKing on a synthetic example; the app interface is currently primarily Simplified Chinese.](docs/assets/annotation-styles-en.png)
+![Annotation styles rendered by ScreenshotKing on a synthetic example.](docs/assets/annotation-styles-en.png)
 </details>
 
 ## Also included
@@ -55,6 +55,12 @@ Style, move, or copy annotation objects; undo and redo changes; export PNG, JPEG
 3. Allow Screen & System Audio Recording to capture. Accessibility permission is needed for automatic scrolling and active paste.
 4. Use a shortcut to capture, then reopen the image from the library when you want to annotate.
 
+<details>
+<summary>Native English home window</summary>
+
+![ScreenshotKing English home window with capture, annotation, clipboard, library and settings actions](docs/assets/home-en-0.4.0.png)
+</details>
+
 Default shortcuts:
 
 | Action | Shortcut |
@@ -64,6 +70,8 @@ Default shortcuts:
 | Repeat previous selection | `⌃⌥⌘3` |
 | Long screenshot | `⌃⌥⌘4` |
 | Start / stop recording | `⌃⌥⌘R` |
+
+The app follows macOS preferred languages automatically. Its menus, settings, capture controls, editor, clipboard and permission descriptions support English and Simplified Chinese. Your notes, file names and clipboard contents keep their original text.
 
 Shortcuts can be changed in Settings. Press Escape to cancel a capture.
 
@@ -90,7 +98,7 @@ open build/ScreenshotKing.app
 ./scripts/test.sh
 ```
 
-The test script covers geometry, image export and processing, document recovery, local clipboard behavior, OCR, and QR recognition. These tests use a private pasteboard; native QA helpers can touch the system clipboard. The release's native verification includes silent save and clipboard image output, reopening a capture for editing, and selected annotation and clipboard behavior. See the [verification record](docs/verification.md) and [feature coverage matrix](docs/parity-matrix.md) for evidence and limits.
+The test script checks all 508 bilingual strings, language selection and English fallback, format substitutions, localized permission descriptions, geometry, image export and processing, document recovery, local clipboard behavior, OCR, and QR recognition. These tests use a private pasteboard; native QA helpers can touch the system clipboard. The release's native verification includes silent save and clipboard image output, reopening a capture for editing, and selected annotation and clipboard behavior. See the [verification record](docs/verification.md) and [feature coverage matrix](docs/parity-matrix.md) for evidence and limits.
 
 For detailed usage, see the [capture and annotation guide (Chinese)](docs/screenshot-workflow.md). For repository publication and README localization, see the [GitHub publishing notes (Chinese)](docs/github-publishing.md).
 
